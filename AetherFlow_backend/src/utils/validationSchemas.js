@@ -26,10 +26,9 @@ const userSchemas = {
         'string.min': 'Password must be at least {#limit} characters long',
         'any.required': 'Password is required'
       }),
-    passwordConfirm: Joi.string().valid(Joi.ref('password')).required()
+    passwordConfirm: Joi.string().valid(Joi.ref('password')).optional()
       .messages({
-        'any.only': 'Passwords do not match',
-        'any.required': 'Password confirmation is required'
+        'any.only': 'Passwords do not match'
       })
   }),
 

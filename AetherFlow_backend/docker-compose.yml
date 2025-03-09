@@ -14,14 +14,14 @@ services:
       - JWT_SECRET=dev_jwt_secret
       - JWT_EXPIRES_IN=90d
       - JWT_COOKIE_EXPIRES_IN=90
-      - CORS_ORIGIN=http://localhost:8080
+      - CORS_ORIGIN=http://localhost:5175
     depends_on:
       - mongo
     command: npm run dev
     restart: unless-stopped
 
   mongo:
-    image: mongo:latest
+    image: daocloud.io/library/mongo:latest
     ports:
       - "27017:27017"
     volumes:

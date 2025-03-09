@@ -1,0 +1,62 @@
+[14:00:37] 正在启动浏览器...
+[14:00:39] 浏览器已启动
+[14:00:39] 开始测试: 用户注册
+[14:00:39] 测试用户注册: testuser4727, test3272@example.com
+[14:00:40] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:00:40] 浏览器控制台错误: Failed to load resource: the server responded with a status of 404 (Not Found)
+[14:00:42] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:00:42] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:00:44] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:00:44] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:00:45] 等待页面加载完成
+[14:00:45] 点击设置选项卡
+[14:00:46] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:00:46] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:00:48] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:00:48] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:00:48] 设置页面截图已保存: /Users/godcorn/cursor/AetherFlow_v2/AetherFlow_plugin_front/debug-settings-1741500048196.png
+[14:00:50] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:00:50] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:00:52] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:00:52] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:00:54] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:00:54] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:00:56] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:00:56] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:00:58] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:00:58] 测试失败: 用户注册 - 等待元素 div[role="tabpanel"] 超时
+[14:00:58] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:00:58] 错误截图已保存: /Users/godcorn/cursor/AetherFlow_v2/AetherFlow_plugin_front/error-1741500058373.png
+[14:00:58] 开始测试: 用户登出
+[14:00:58] 测试用户登出
+[14:00:58] 测试失败: 用户登出 - 登出失败: 未找到退出登录按钮
+[14:00:58] 错误截图已保存: /Users/godcorn/cursor/AetherFlow_v2/AetherFlow_plugin_front/error-1741500058451.png
+[14:00:58] 开始测试: 用户登录
+[14:00:58] 测试用户登录: test3272@example.com
+[14:00:58] 测试失败: 用户登录 - 未找到登录按钮
+[14:00:58] 错误截图已保存: /Users/godcorn/cursor/AetherFlow_v2/AetherFlow_plugin_front/error-1741500058524.png
+[14:00:58] 开始测试: 会话持久性
+[14:00:58] 测试会话持久性
+[14:00:59] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:01:00] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:01:01] 浏览器控制台错误: WebSocket connection to 'ws://localhost:3030/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[14:01:01] 测试失败: 会话持久性 - 会话持久性测试失败: 刷新后用户未保持登录状态
+[14:01:01] 错误截图已保存: /Users/godcorn/cursor/AetherFlow_v2/AetherFlow_plugin_front/error-1741500061692.png
+[14:01:01] 开始测试: 注册错误处理
+[14:01:01] 测试注册错误处理
+[14:01:01] 测试用户登出
+[14:01:01] 测试失败: 注册错误处理 - 登出失败: 未找到退出登录按钮
+[14:01:01] 错误截图已保存: /Users/godcorn/cursor/AetherFlow_v2/AetherFlow_plugin_front/error-1741500061783.png
+[14:01:01] 开始测试: 登录错误处理
+[14:01:01] 测试登录错误处理
+[14:01:01] 测试用户登出
+[14:01:01] 测试失败: 登录错误处理 - 登出失败: 未找到退出登录按钮
+[14:01:01] 错误截图已保存: /Users/godcorn/cursor/AetherFlow_v2/AetherFlow_plugin_front/error-1741500061866.png
+
+测试结果摘要
+总测试数: 6
+通过: 0
+失败: 6
+跳过: 0
+[14:01:01] 正在关闭浏览器...
+[14:01:02] 浏览器已关闭

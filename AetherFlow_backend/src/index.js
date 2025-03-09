@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
+const routes = require('./routes');
 
 // 加载环境变量
 dotenv.config();
@@ -14,8 +15,37 @@ const app = express();
 // 中间件
 app.use(helmet()); // 安全相关HTTP头
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
-  credentials: true
+  origin: function(origin, callback) {
+    // 允许所有localhost端口和无源请求（如Postman）
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:5175',
+      'http://localhost:5176',
+      'http://localhost:5177',
+      'http://localhost:5178',
+      'http://localhost:5179',
+      'http://localhost:5180',
+      'http://127.0.0.1:5173',
+      'http://127.0.0.1:5174',
+      'http://127.0.0.1:5175',
+      'http://127.0.0.1:5176',
+      'http://127.0.0.1:5177',
+      'http://127.0.0.1:5178',
+      'http://127.0.0.1:5179',
+      'http://127.0.0.1:5180'
+    ];
+    
+    // 允许无源请求（如Postman）或允许的源
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 })); // 跨域资源共享
 app.use(morgan('dev')); // HTTP请求日志
 app.use(express.json()); // 解析JSON请求体
@@ -31,15 +61,43 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-// 错误处理中间件
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
+// API路由
+app.use('/api', routes);
+
+// 404处理
+app.use((req, res, next) => {
+  res.status(404).json({
     success: false,
     error: {
-      code: 'SERVER_ERROR',
-      message: 'Internal Server Error',
-      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+      code: 'NOT_FOUND',
+      message: `Route ${req.originalUrl} not found`
+    }
+  });
+});
+
+// 错误处理中间件
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  
+  // CORS错误特殊处理
+  if (err.message === 'Not allowed by CORS') {
+    return res.status(403).json({
+      success: false,
+      error: {
+        code: 'CORS_ERROR',
+        message: 'CORS policy violation',
+        details: `Origin ${req.headers.origin} is not allowed`
+      }
+    });
+  }
+  
+  // 通用错误响应
+  res.status(err.statusCode || 500).json({
+    success: false,
+    error: {
+      code: err.code || 'SERVER_ERROR',
+      message: err.message || 'Internal Server Error',
+      details: process.env.NODE_ENV === 'development' ? err.stack : undefined
     }
   });
 });
@@ -48,6 +106,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`API available at http://localhost:${PORT}/api`);
   
   // 连接到MongoDB
   try {

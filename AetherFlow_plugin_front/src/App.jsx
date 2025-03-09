@@ -7,6 +7,10 @@ import SmartSuggestions from './components/SmartSuggestions';
 import AutoSave from './components/AutoSave';
 import Settings from './components/Settings';
 import PromptModal from './components/PromptModal';
+import { AuthProvider } from './contexts/AuthContext';
+import { PromptProvider } from './contexts/PromptContext';
+import ErrorBoundary from './components/ErrorBoundary';
+import ErrorMonitor from './components/ErrorMonitor';
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('library');
@@ -36,69 +40,76 @@ const App = () => {
   };
 
   return (
-    <motion.div 
-      className="h-screen bg-gray-900 text-white overflow-hidden"
-      initial={{ width: isExpanded ? 400 : 320 }}
-      animate={{ width: isExpanded ? 400 : 320 }}
-      transition={{ duration: reducedMotion ? 0 : 0.3 }}
-    >
-      <div className="flex flex-col h-full relative">
-        <NavigationBar 
-          activeTab={activeTab} 
-          setActiveTab={setActiveTab} 
-          toggleExpand={toggleExpand}
-          isExpanded={isExpanded}
-          reducedMotion={reducedMotion}
-        />
-        
-        <main className="flex-1 overflow-y-auto p-4">
-          {activeTab === 'library' && (
-            <PromptLibrary 
-              reducedMotion={reducedMotion} 
-              onSelectPrompt={handlePromptSelect}
-            />
-          )}
-          {activeTab === 'enhance' && <PromptEnhancement reducedMotion={reducedMotion} />}
-          {activeTab === 'suggest' && (
-            <SmartSuggestions 
-              reducedMotion={reducedMotion} 
-              onSelectSuggestion={handlePromptSelect}
-              enabled={smartSuggestionsEnabled}
-            />
-          )}
-          {activeTab === 'settings' && (
-            <Settings 
-              reducedMotion={reducedMotion}
-              autoSaveEnabled={autoSaveEnabled}
-              setAutoSaveEnabled={setAutoSaveEnabled}
-              smartSuggestionsEnabled={smartSuggestionsEnabled}
-              setSmartSuggestionsEnabled={setSmartSuggestionsEnabled}
-            />
-          )}
-        </main>
-        
-        {autoSaveEnabled && <AutoSave reducedMotion={reducedMotion} />}
-        
-        <button 
-          onClick={toggleReducedMotion}
-          className="absolute bottom-4 left-4 text-xs flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-          aria-label={reducedMotion ? "Enable animations" : "Reduce motion"}
-        >
-          <span className={`w-3 h-3 rounded-full ${reducedMotion ? 'bg-purple-500' : 'bg-gray-600'}`}></span>
-          Reduced motion
-        </button>
+    <ErrorBoundary>
+      <ErrorMonitor />
+      <AuthProvider>
+        <PromptProvider>
+          <motion.div 
+            className="h-screen bg-gray-900 text-white overflow-hidden"
+            initial={{ width: isExpanded ? 400 : 320 }}
+            animate={{ width: isExpanded ? 400 : 320 }}
+            transition={{ duration: reducedMotion ? 0 : 0.3 }}
+          >
+            <div className="flex flex-col h-full relative">
+              <NavigationBar 
+                activeTab={activeTab} 
+                setActiveTab={setActiveTab} 
+                toggleExpand={toggleExpand}
+                isExpanded={isExpanded}
+                reducedMotion={reducedMotion}
+              />
+              
+              <main className="flex-1 overflow-y-auto p-4">
+                {activeTab === 'library' && (
+                  <PromptLibrary 
+                    reducedMotion={reducedMotion} 
+                    onSelectPrompt={handlePromptSelect}
+                  />
+                )}
+                {activeTab === 'enhance' && <PromptEnhancement reducedMotion={reducedMotion} />}
+                {activeTab === 'suggest' && (
+                  <SmartSuggestions 
+                    reducedMotion={reducedMotion} 
+                    onSelectSuggestion={handlePromptSelect}
+                    enabled={smartSuggestionsEnabled}
+                  />
+                )}
+                {activeTab === 'settings' && (
+                  <Settings 
+                    reducedMotion={reducedMotion}
+                    autoSaveEnabled={autoSaveEnabled}
+                    setAutoSaveEnabled={setAutoSaveEnabled}
+                    smartSuggestionsEnabled={smartSuggestionsEnabled}
+                    setSmartSuggestionsEnabled={setSmartSuggestionsEnabled}
+                  />
+                )}
+              </main>
+              
+              {autoSaveEnabled && <AutoSave reducedMotion={reducedMotion} />}
+              
+              <button 
+                onClick={toggleReducedMotion}
+                className="absolute bottom-4 left-4 text-xs flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+                aria-label={reducedMotion ? "Enable animations" : "Reduce motion"}
+              >
+                <span className={`w-3 h-3 rounded-full ${reducedMotion ? 'bg-purple-500' : 'bg-gray-600'}`}></span>
+                Reduced motion
+              </button>
 
-        <AnimatePresence>
-          {isModalOpen && selectedPrompt && (
-            <PromptModal 
-              prompt={selectedPrompt} 
-              onClose={closeModal} 
-              reducedMotion={reducedMotion}
-            />
-          )}
-        </AnimatePresence>
-      </div>
-    </motion.div>
+              <AnimatePresence>
+                {isModalOpen && selectedPrompt && (
+                  <PromptModal 
+                    prompt={selectedPrompt} 
+                    onClose={closeModal} 
+                    reducedMotion={reducedMotion}
+                  />
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        </PromptProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 };
 
