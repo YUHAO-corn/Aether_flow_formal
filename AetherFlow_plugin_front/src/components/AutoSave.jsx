@@ -110,7 +110,7 @@ const AutoSave = ({ reducedMotion }) => {
             id: conv.timestamp,
             timestamp: formatTimeAgo(new Date(conv.timestamp)),
             content: conv.prompt.substring(0, 100) + (conv.prompt.length > 100 ? '...' : ''),
-            platform: conv.platform,
+            platform: conv.platform || '未知平台',
             fullData: conv
           }));
           setSaveHistory(formattedHistory);
@@ -141,7 +141,7 @@ const AutoSave = ({ reducedMotion }) => {
           id: prompt.id || prompt.timestamp || Date.now().toString(),
           timestamp: formatTimeAgo(new Date(prompt.createdAt || prompt.timestamp || Date.now())),
           content: prompt.content.substring(0, 100) + (prompt.content.length > 100 ? '...' : ''),
-          platform: prompt.platform || 'Unknown',
+          platform: prompt.platform || '未知平台',
           fullData: prompt
         }));
         
@@ -257,6 +257,22 @@ const AutoSave = ({ reducedMotion }) => {
     setIsExpanded(false);
   };
   
+  // 获取平台对应的颜色
+  const getPlatformColor = (platform) => {
+    const platformColors = {
+      'ChatGPT': 'text-green-400',
+      'Claude': 'text-purple-400',
+      'Bard': 'text-blue-400',
+      'Bing Chat': 'text-cyan-400',
+      'Perplexity': 'text-yellow-400',
+      'Poe': 'text-pink-400',
+      'ChatGLM': 'text-indigo-400',
+      '未知平台': 'text-gray-400'
+    };
+    
+    return platformColors[platform] || 'text-gray-400';
+  };
+  
   return (
     <div className="fixed bottom-4 right-4 z-50">
       <AnimatePresence>
@@ -289,7 +305,7 @@ const AutoSave = ({ reducedMotion }) => {
                     <div className="flex justify-between items-start">
                       <div className="flex flex-col">
                         <span className="text-xs text-gray-400">{item.timestamp}</span>
-                        <span className="text-xs text-blue-400">{item.platform}</span>
+                        <span className={`text-xs ${getPlatformColor(item.platform)}`}>{item.platform}</span>
                       </div>
                       <button 
                         className="text-xs text-purple-400 hover:text-purple-300"

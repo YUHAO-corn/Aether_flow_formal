@@ -27,7 +27,23 @@
 npm install
 ```
 
-### 启动开发服务器
+### 浏览器插件开发（推荐）
+
+我们提供了热更新功能，可以大幅提高开发效率：
+
+```bash
+npm run dev:with-reload
+```
+
+这个命令会：
+1. 启动热更新服务器，监视文件变化
+2. 自动构建插件到 `dist` 目录
+3. 在浏览器中运行插件
+4. 当您修改代码时，插件会自动重新构建并重载
+
+更多详细信息，请参阅 [浏览器插件开发指南](./EXTENSION_DEV_GUIDE.md)。
+
+### 启动开发服务器（网页模式）
 
 ```bash
 npm run dev
@@ -61,4 +77,8 @@ npm run preview
   - `App.jsx` - 主应用组件
   - `main.jsx` - 应用入口点
 - `public/` - 静态资源
-- `index.html` - HTML模板 
+- `index.html` - HTML模板
+- `scripts/` - 开发和构建脚本
+  - `dev-hot-reload.js` - 热更新服务器脚本
+  - `run-extension.js` - 浏览器插件运行脚本
+  - `dev-with-reload.js` - 集成开发环境脚本 

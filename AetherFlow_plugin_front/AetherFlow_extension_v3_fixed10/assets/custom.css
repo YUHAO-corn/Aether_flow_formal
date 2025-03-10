@@ -1,0 +1,14 @@
+/* 隐藏右上角的折叠按钮 */
+button[aria-label="Collapse sidebar"],
+button[aria-label="折叠侧边栏"] {
+  display: none !important;
+}
+
+/* 确保关闭按钮在右上角 */
+#aetherflow-sidebar-close {
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  opacity: 1 !important;
+  z-index: 10001 !important;
+} 

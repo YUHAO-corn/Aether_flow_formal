@@ -197,6 +197,51 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   
+  // 处理来自内容脚本的saveConversations消息
+  if (message.action === 'saveConversations') {
+    console.log('[Background] 收到保存多条对话内容请求，对话数量:', message.conversations.length);
+    
+    // 验证对话内容
+    const validConversations = message.conversations.filter(conv => {
+      // 确保对话内容有效
+      if (!conv.prompt || !conv.response) {
+        console.warn('[Background] 忽略无效对话:', conv);
+        return false;
+      }
+      
+      // 确保平台信息有效
+      if (!conv.platform) {
+        console.warn('[Background] 对话缺少平台信息，设置为"未知平台"');
+        conv.platform = '未知平台';
+      }
+      
+      return true;
+    });
+    
+    if (validConversations.length === 0) {
+      console.warn('[Background] 没有有效的对话内容需要保存');
+      sendResponse({ success: false, error: '没有有效的对话内容' });
+      return true;
+    }
+    
+    // 保存对话内容到本地存储
+    saveConversationsToLocal(validConversations);
+    
+    // 尝试保存到后端API
+    saveConversationsToAPI(validConversations)
+      .then(success => {
+        console.log('[Background] API保存结果:', success ? '成功' : '失败');
+        sendResponse({ success });
+      })
+      .catch(error => {
+        console.error('[Background] 保存对话内容失败:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    
+    // 返回true表示将异步发送响应
+    return true;
+  }
+  
   if (message.action === 'getSaveStatus') {
     console.log('[Background] 收到获取保存状态请求');
     
@@ -247,6 +292,51 @@ export function init() {
   // 设置默认的保存状态
   chrome.storage.local.set({ 'saveStatus': 'idle' }, () => {
     console.log('[Background] 保存状态已初始化为"idle"');
+  });
+  
+  // 清理过期的对话历史
+  cleanupExpiredConversations();
+}
+
+/**
+ * 清理过期的对话历史
+ * 保留最近的MAX_HISTORY_SIZE条对话和所有收藏的对话
+ */
+function cleanupExpiredConversations() {
+  console.log('[Background] 清理过期的对话历史');
+  
+  chrome.storage.local.get('conversationHistory', data => {
+    const history = data.conversationHistory || [];
+    
+    if (history.length <= MAX_HISTORY_SIZE) {
+      console.log('[Background] 对话历史数量未超过限制，无需清理');
+      return;
+    }
+    
+    // 分离收藏和未收藏的对话
+    const favoriteConversations = history.filter(conv => conv.favorite);
+    const nonFavoriteConversations = history.filter(conv => !conv.favorite);
+    
+    // 如果未收藏的对话超过限制，只保留最近的MAX_HISTORY_SIZE条
+    if (nonFavoriteConversations.length > MAX_HISTORY_SIZE) {
+      console.log(`[Background] 未收藏对话超过${MAX_HISTORY_SIZE}条，进行清理`);
+      
+      // 按时间排序，保留最新的
+      nonFavoriteConversations.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      
+      // 只保留最新的MAX_HISTORY_SIZE条
+      const cleanedNonFavorites = nonFavoriteConversations.slice(0, MAX_HISTORY_SIZE);
+      
+      // 合并收藏和清理后的未收藏对话
+      const cleanedHistory = [...favoriteConversations, ...cleanedNonFavorites];
+      
+      console.log(`[Background] 清理前: ${history.length}条, 清理后: ${cleanedHistory.length}条`);
+      
+      // 保存清理后的历史记录
+      chrome.storage.local.set({ 'conversationHistory': cleanedHistory }, () => {
+        console.log('[Background] 对话历史清理完成');
+      });
+    }
   });
 }
 
