@@ -45,21 +45,21 @@ const App = () => {
       <AuthProvider>
         <PromptProvider>
           <motion.div 
-            className="h-screen bg-gray-900 text-white overflow-hidden"
-            initial={{ width: isExpanded ? 400 : 320 }}
-            animate={{ width: isExpanded ? 400 : 320 }}
+            className="fixed right-0 top-0 h-screen bg-gray-900 text-white overflow-hidden z-50"
+            initial={{ width: isExpanded ? 400 : 320, x: 0 }}
+            animate={{ width: isExpanded ? 400 : 320, x: 0 }}
             transition={{ duration: reducedMotion ? 0 : 0.3 }}
+            style={{ boxShadow: '-5px 0 15px rgba(0, 0, 0, 0.3)' }}
           >
             <div className="flex flex-col h-full relative">
               <NavigationBar 
                 activeTab={activeTab} 
                 setActiveTab={setActiveTab} 
-                toggleExpand={toggleExpand}
                 isExpanded={isExpanded}
                 reducedMotion={reducedMotion}
               />
               
-              <main className="flex-1 overflow-y-auto p-4">
+              <main className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                 {activeTab === 'library' && (
                   <PromptLibrary 
                     reducedMotion={reducedMotion} 

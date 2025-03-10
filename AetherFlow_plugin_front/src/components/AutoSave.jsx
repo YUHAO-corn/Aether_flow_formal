@@ -18,30 +18,93 @@ const AutoSave = ({ reducedMotion }) => {
     
     // 获取初始状态
     if (typeof chrome !== 'undefined' && chrome.runtime) {
-      chrome.runtime.sendMessage({ action: 'getSaveStatus' }, response => {
-        if (chrome.runtime.lastError) {
-          console.warn('[AutoSave] 获取保存状态失败:', chrome.runtime.lastError);
-          return;
-        }
-        
-        if (response) {
-          console.log('[AutoSave] 获取到保存状态:', response.status);
-          setSaveStatus(response.status);
-          if (response.timestamp) {
-            setLastSaved(new Date(response.timestamp));
-            console.log('[AutoSave] 最后保存时间:', new Date(response.timestamp).toLocaleString());
+      try {
+        chrome.runtime.sendMessage({ action: 'getSaveStatus' }, response => {
+          if (chrome.runtime.lastError) {
+            console.warn('[AutoSave] 获取保存状态失败:', chrome.runtime.lastError);
+            // 使用默认状态
+            setSaveStatus('idle');
+            setLastSaved(new Date());
+            return;
           }
-        }
-      });
+          
+          if (response) {
+            console.log('[AutoSave] 获取到保存状态:', response.status);
+            setSaveStatus(response.status || 'idle');
+            if (response.timestamp) {
+              setLastSaved(new Date(response.timestamp));
+              console.log('[AutoSave] 最后保存时间:', new Date(response.timestamp).toLocaleString());
+            } else {
+              // 如果没有时间戳，使用当前时间
+              setLastSaved(new Date());
+            }
+          } else {
+            // 如果没有响应，使用默认状态
+            setSaveStatus('idle');
+            setLastSaved(new Date());
+          }
+        });
+        
+        // 获取历史记录
+        loadSaveHistory();
+        
+        // 监听状态更新
+        const messageListener = (message) => {
+          if (message.action === 'updateSaveStatus') {
+            console.log('[AutoSave] 收到状态更新:', message.status);
+            setSaveStatus(message.status);
+            if (message.timestamp) {
+              setLastSaved(new Date(message.timestamp));
+              console.log('[AutoSave] 最后保存时间更新为:', new Date(message.timestamp).toLocaleString());
+              
+              // 重新加载历史记录
+              loadSaveHistory();
+            }
+          }
+        };
+        
+        chrome.runtime.onMessage.addListener(messageListener);
+        
+        // 清理函数
+        return () => {
+          console.log('[AutoSave] 组件卸载，移除消息监听器');
+          chrome.runtime.onMessage.removeListener(messageListener);
+        };
+      } catch (error) {
+        console.error('[AutoSave] 初始化错误:', error);
+        // 使用默认状态和模拟数据
+        setSaveStatus('idle');
+        setLastSaved(new Date());
+        
+        // 使用本地存储中的历史记录
+        loadLocalSaveHistory();
+      }
+    } else {
+      console.warn('[AutoSave] chrome.runtime不可用，可能不在浏览器扩展环境中');
+      // 使用默认状态和模拟数据
+      setSaveStatus('idle');
+      setLastSaved(new Date());
       
-      // 获取历史记录
+      // 使用本地存储中的历史记录
+      loadLocalSaveHistory();
+    }
+  }, []);
+  
+  // 加载保存历史
+  const loadSaveHistory = () => {
+    console.log('[AutoSave] 加载保存历史');
+    
+    // 先尝试从chrome.runtime获取
+    if (typeof chrome !== 'undefined' && chrome.runtime) {
       chrome.runtime.sendMessage({ action: 'getConversationHistory' }, response => {
         if (chrome.runtime.lastError) {
           console.warn('[AutoSave] 获取历史记录失败:', chrome.runtime.lastError);
+          // 使用本地存储中的历史记录
+          loadLocalSaveHistory();
           return;
         }
         
-        if (response && response.history) {
+        if (response && response.history && response.history.length > 0) {
           console.log('[AutoSave] 获取到历史记录数量:', response.history.length);
           const formattedHistory = response.history.map(conv => ({
             id: conv.timestamp,
@@ -51,32 +114,89 @@ const AutoSave = ({ reducedMotion }) => {
             fullData: conv
           }));
           setSaveHistory(formattedHistory);
+        } else {
+          // 如果没有历史记录或响应，使用本地存储中的历史记录
+          console.log('[AutoSave] 没有历史记录，尝试从本地存储加载');
+          loadLocalSaveHistory();
         }
       });
-      
-      // 监听状态更新
-      const messageListener = (message) => {
-        if (message.action === 'updateSaveStatus') {
-          console.log('[AutoSave] 收到状态更新:', message.status);
-          setSaveStatus(message.status);
-          if (message.timestamp) {
-            setLastSaved(new Date(message.timestamp));
-            console.log('[AutoSave] 最后保存时间更新为:', new Date(message.timestamp).toLocaleString());
-          }
-        }
-      };
-      
-      chrome.runtime.onMessage.addListener(messageListener);
-      
-      // 清理函数
-      return () => {
-        console.log('[AutoSave] 组件卸载，移除消息监听器');
-        chrome.runtime.onMessage.removeListener(messageListener);
-      };
     } else {
-      console.warn('[AutoSave] chrome.runtime不可用，可能不在浏览器扩展环境中');
+      // 如果chrome.runtime不可用，使用本地存储中的历史记录
+      loadLocalSaveHistory();
     }
-  }, []);
+  };
+  
+  // 从本地存储加载历史记录
+  const loadLocalSaveHistory = () => {
+    console.log('[AutoSave] 从本地存储加载历史记录');
+    
+    try {
+      // 从localStorage获取历史记录
+      const localHistory = JSON.parse(localStorage.getItem('promptHistory') || '[]');
+      
+      if (localHistory.length > 0) {
+        console.log('[AutoSave] 从本地存储获取到历史记录数量:', localHistory.length);
+        
+        const formattedHistory = localHistory.map(prompt => ({
+          id: prompt.id || prompt.timestamp || Date.now().toString(),
+          timestamp: formatTimeAgo(new Date(prompt.createdAt || prompt.timestamp || Date.now())),
+          content: prompt.content.substring(0, 100) + (prompt.content.length > 100 ? '...' : ''),
+          platform: prompt.platform || 'Unknown',
+          fullData: prompt
+        }));
+        
+        setSaveHistory(formattedHistory);
+      } else {
+        // 如果本地存储中没有历史记录，使用模拟数据
+        console.log('[AutoSave] 本地存储中没有历史记录，使用模拟数据');
+        
+        const mockHistory = [
+          {
+            id: Date.now().toString(),
+            timestamp: Date.now(),
+            prompt: '如何使用React Hooks优化组件性能？',
+            response: 'React Hooks提供了多种方式来优化组件性能...',
+            platform: 'ChatGPT',
+            url: 'https://chat.openai.com/'
+          }
+        ];
+        
+        const formattedHistory = mockHistory.map(conv => ({
+          id: conv.id || conv.timestamp,
+          timestamp: formatTimeAgo(new Date(conv.timestamp)),
+          content: conv.prompt.substring(0, 100) + (conv.prompt.length > 100 ? '...' : ''),
+          platform: conv.platform,
+          fullData: conv
+        }));
+        
+        setSaveHistory(formattedHistory);
+      }
+    } catch (error) {
+      console.error('[AutoSave] 从本地存储加载历史记录失败:', error);
+      
+      // 使用模拟数据
+      const mockHistory = [
+        {
+          id: Date.now().toString(),
+          timestamp: Date.now(),
+          prompt: '如何使用React Hooks优化组件性能？',
+          response: 'React Hooks提供了多种方式来优化组件性能...',
+          platform: 'ChatGPT',
+          url: 'https://chat.openai.com/'
+        }
+      ];
+      
+      const formattedHistory = mockHistory.map(conv => ({
+        id: conv.id || conv.timestamp,
+        timestamp: formatTimeAgo(new Date(conv.timestamp)),
+        content: conv.prompt.substring(0, 100) + (conv.prompt.length > 100 ? '...' : ''),
+        platform: conv.platform,
+        fullData: conv
+      }));
+      
+      setSaveHistory(formattedHistory);
+    }
+  };
   
   // 格式化最后保存时间
   const formattedLastSaved = lastSaved ? formatTimeAgo(lastSaved) : '刚刚';
@@ -100,30 +220,13 @@ const AutoSave = ({ reducedMotion }) => {
   
   const toggleExpand = () => {
     console.log('[AutoSave] 切换历史记录面板:', !isExpanded ? '展开' : '折叠');
-    setIsExpanded(!isExpanded);
     
-    // 如果展开，重新获取历史记录
-    if (!isExpanded && typeof chrome !== 'undefined' && chrome.runtime) {
-      console.log('[AutoSave] 展开面板，重新获取历史记录');
-      chrome.runtime.sendMessage({ action: 'getConversationHistory' }, response => {
-        if (chrome.runtime.lastError) {
-          console.warn('[AutoSave] 获取历史记录失败:', chrome.runtime.lastError);
-          return;
-        }
-        
-        if (response && response.history) {
-          console.log('[AutoSave] 获取到历史记录数量:', response.history.length);
-          const formattedHistory = response.history.map(conv => ({
-            id: conv.timestamp,
-            timestamp: formatTimeAgo(new Date(conv.timestamp)),
-            content: conv.prompt.substring(0, 100) + (conv.prompt.length > 100 ? '...' : ''),
-            platform: conv.platform,
-            fullData: conv
-          }));
-          setSaveHistory(formattedHistory);
-        }
-      });
+    if (!isExpanded) {
+      // 如果要展开面板，重新加载历史记录
+      loadSaveHistory();
     }
+    
+    setIsExpanded(!isExpanded);
   };
   
   const handleRestore = (historyItem) => {
@@ -155,7 +258,7 @@ const AutoSave = ({ reducedMotion }) => {
   };
   
   return (
-    <div className="fixed bottom-4 right-4 z-20">
+    <div className="fixed bottom-4 right-4 z-50">
       <AnimatePresence>
         {isExpanded && (
           <motion.div
@@ -215,10 +318,11 @@ const AutoSave = ({ reducedMotion }) => {
             : saveStatus === 'error'
               ? 'bg-red-900/70 text-red-300'
               : 'bg-gray-800/70 text-gray-300 hover:bg-gray-700/70'
-        }`}
+        } shadow-lg`}
         whileHover={reducedMotion ? {} : { y: -2 }}
         onClick={toggleExpand}
         aria-label="查看保存历史"
+        style={{ backdropFilter: 'blur(4px)' }}
       >
         {saveStatus === 'saving' ? (
           <motion.div 

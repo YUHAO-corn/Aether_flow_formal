@@ -263,86 +263,99 @@ export function captureConversation() {
 export function initAutoSave() {
   console.log('[AutoSave] 初始化自动保存功能');
   
-  // 检查chrome对象是否存在（在测试环境中可能不存在）
-  if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
-    console.log('[AutoSave] 测试环境中，使用模拟的chrome API');
-    // 在测试环境中，立即捕获一次对话内容
-    captureConversation();
+  // 检测当前网站
+  const currentURL = window.location.href;
+  let platform = '';
+  
+  if (currentURL.includes('chat.openai.com')) {
+    platform = 'ChatGPT';
+  } else if (currentURL.includes('claude.ai')) {
+    platform = 'Claude';
+  } else if (currentURL.includes('bard.google.com')) {
+    platform = 'Bard';
+  } else {
+    console.log('[AutoSave] 不支持的平台:', currentURL);
     return;
   }
   
-  // 检查是否启用了自动保存
-  chrome.storage.local.get('autoSaveEnabled', data => {
-    if (data.autoSaveEnabled === false) {
-      console.log('[AutoSave] 自动保存功能已禁用');
-      return;
-    }
-    
-    console.log('[AutoSave] 自动保存功能已启用');
-    
-    // 立即捕获一次对话内容
-    captureConversation();
-    
-    // 设置定时器，定期捕获对话内容
-    const saveInterval = setInterval(captureConversation, 30000); // 每30秒捕获一次
-    console.log('[AutoSave] 已设置自动保存定时器，间隔: 30秒');
-    
-    // 监听DOM变化，在对话更新时捕获内容
-    const observer = new MutationObserver(mutations => {
-      // 检查是否有新的对话内容
-      const hasNewContent = mutations.some(mutation => {
-        return mutation.type === 'childList' && 
-               mutation.addedNodes.length > 0 &&
-               Array.from(mutation.addedNodes).some(node => {
-                 return node.nodeType === Node.ELEMENT_NODE &&
-                        (node.classList.contains('group') || // ChatGPT
-                         node.classList.contains('message') || // Claude
-                         node.classList.contains('message-group')); // Bard
-               });
-      });
+  console.log(`[AutoSave] 检测到平台: ${platform}`);
+  
+  // 定义MutationObserver监听DOM变化
+  const observer = new MutationObserver((mutations) => {
+    // 防抖处理，避免频繁触发
+    clearTimeout(window.autoSaveDebounceTimer);
+    window.autoSaveDebounceTimer = setTimeout(() => {
+      console.log('[AutoSave] 检测到DOM变化，尝试捕获对话');
+      const conversations = captureConversation();
       
-      if (hasNewContent) {
-        console.log('[AutoSave] 检测到新的对话内容，触发捕获');
-        // 延迟一秒，确保内容已完全加载
-        setTimeout(captureConversation, 1000);
-      }
-    });
-    
-    // 开始观察文档变化
-    observer.observe(document.body, { childList: true, subtree: true });
-    console.log('[AutoSave] 已启动DOM变化监听');
-    
-    // 监听来自插件的消息
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      if (message.action === 'toggleAutoSave') {
-        console.log('[AutoSave] 收到切换自动保存状态的消息:', message.enabled);
+      if (conversations && conversations.length > 0) {
+        // 过滤出新的对话
+        const newConversations = conversations.filter(conv => {
+          // 检查是否已经保存过
+          return !lastCapturedConversations.some(lastConv => 
+            lastConv.prompt === conv.prompt && 
+            lastConv.response === conv.response
+          );
+        });
         
-        if (message.enabled) {
-          // 如果启用了自动保存，立即捕获一次对话内容
-          captureConversation();
+        if (newConversations.length > 0) {
+          console.log(`[AutoSave] 发现 ${newConversations.length} 条新对话，准备保存`);
+          
+          // 更新最后捕获的对话
+          lastCapturedConversations = [...lastCapturedConversations, ...newConversations];
+          // 保持最后捕获的对话数量在合理范围内
+          if (lastCapturedConversations.length > 50) {
+            lastCapturedConversations = lastCapturedConversations.slice(-50);
+          }
+          
+          // 发送消息到后台脚本保存对话
+          chrome.runtime.sendMessage({
+            action: 'saveConversations',
+            conversations: newConversations
+          }, response => {
+            if (chrome.runtime.lastError) {
+              console.error('[AutoSave] 保存对话失败:', chrome.runtime.lastError);
+              return;
+            }
+            
+            if (response && response.success) {
+              console.log(`[AutoSave] 成功保存 ${newConversations.length} 条对话`);
+            } else {
+              console.error('[AutoSave] 保存对话失败:', response?.error || '未知错误');
+            }
+          });
         } else {
-          // 如果禁用了自动保存，清除定时器和观察者
-          clearInterval(saveInterval);
-          observer.disconnect();
-          console.log('[AutoSave] 已禁用自动保存功能');
+          console.log('[AutoSave] 没有发现新对话');
         }
-        
-        sendResponse({ success: true });
       }
-    });
+    }, 1000); // 1秒防抖
   });
+  
+  // 开始观察DOM变化
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    characterData: true
+  });
+  
+  console.log('[AutoSave] 已启动DOM变化监听');
+  
+  // 初始捕获一次对话
+  setTimeout(() => {
+    console.log('[AutoSave] 初始捕获对话');
+    const conversations = captureConversation();
+    if (conversations && conversations.length > 0) {
+      console.log(`[AutoSave] 初始捕获到 ${conversations.length} 条对话`);
+      lastCapturedConversations = conversations;
+    }
+  }, 2000);
 }
 
-// 在页面加载完成后初始化自动保存功能
+// 页面加载完成后初始化自动保存功能
 if (document.readyState === 'complete') {
-  console.log('[AutoSave] 页面已加载完成，立即初始化');
   initAutoSave();
 } else {
-  console.log('[AutoSave] 页面正在加载，等待加载完成后初始化');
-  window.addEventListener('load', () => {
-    console.log('[AutoSave] 页面加载完成，开始初始化');
-    initAutoSave();
-  });
+  window.addEventListener('load', initAutoSave);
 }
 
 console.log('[AutoSave] 内容脚本已加载'); 

@@ -23,7 +23,7 @@ const PromptModal = ({ prompt, onClose, reducedMotion }) => {
       onClick={onClose}
     >
       <motion.div
-        className="bg-gray-800 border border-gray-700 rounded-lg w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col"
+        className="bg-gray-800 border border-gray-700 rounded-lg w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col"
         initial={{ scale: 0.9, y: 20 }}
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.9, y: 20 }}
@@ -31,17 +31,17 @@ const PromptModal = ({ prompt, onClose, reducedMotion }) => {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-4 border-b border-gray-700 flex justify-between items-center">
-          <h3 className="font-medium text-white">{prompt.title}</h3>
+          <h3 className="font-medium text-white truncate mr-2">{prompt.title}</h3>
           <button 
             onClick={onClose}
-            className="text-gray-400 hover:text-white"
+            className="text-gray-400 hover:text-white flex-shrink-0"
             aria-label="Close modal"
           >
             <RiCloseLine size={20} />
           </button>
         </div>
         
-        <div className="p-4 overflow-y-auto flex-1">
+        <div className="p-4 overflow-y-auto flex-1 custom-scrollbar">
           <div className="mb-4">
             <p className="text-sm text-gray-300 mb-2">{prompt.description}</p>
             
@@ -57,7 +57,7 @@ const PromptModal = ({ prompt, onClose, reducedMotion }) => {
             </div>
           </div>
           
-          <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-3 text-white whitespace-pre-wrap text-sm">
+          <div className="bg-gray-900/50 border border-gray-700 rounded-lg p-3 text-white whitespace-pre-wrap text-sm overflow-x-auto">
             {prompt.content}
           </div>
         </div>

@@ -5,12 +5,10 @@ import {
   RiMagicLine, 
   RiLightbulbLine, 
   RiSettings4Line,
-  RiArrowLeftSLine,
-  RiArrowRightSLine,
   RiExternalLinkLine
 } from 'react-icons/ri';
 
-const NavigationBar = ({ activeTab, setActiveTab, toggleExpand, isExpanded, reducedMotion }) => {
+const NavigationBar = ({ activeTab, setActiveTab, isExpanded, reducedMotion }) => {
   const navItems = [
     { id: 'library', icon: RiBookMarkLine, label: 'Prompt Library' },
     { id: 'enhance', icon: RiMagicLine, label: 'Enhance' },
@@ -44,31 +42,23 @@ const NavigationBar = ({ activeTab, setActiveTab, toggleExpand, isExpanded, redu
               transition={{ duration: reducedMotion ? 0 : 0.2 }}
             >
               <h1 className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-blue-500">
-                PromptMagic
+                AetherFlow
               </h1>
               <a 
-                href="https://promptmagic.com" 
+                href="https://aetherflow.com" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="ml-2 text-gray-400 hover:text-white transition-colors"
-                aria-label="Visit PromptMagic website"
+                aria-label="Visit AetherFlow website"
               >
                 <RiExternalLinkLine size={16} />
               </a>
             </motion.div>
           )}
         </motion.div>
-        
-        <button 
-          onClick={toggleExpand}
-          className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 transition-colors"
-          aria-label={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
-        >
-          {isExpanded ? <RiArrowLeftSLine size={20} /> : <RiArrowRightSLine size={20} />}
-        </button>
       </div>
       
-      <nav className="flex justify-around px-2 pb-2">
+      <nav className="flex justify-around px-2 pb-2 overflow-visible">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -94,10 +84,10 @@ const NavigationBar = ({ activeTab, setActiveTab, toggleExpand, isExpanded, redu
                 />
               )}
               
-              <Icon size={24} className={isActive ? 'relative z-10' : ''} />
+              <Icon size={isExpanded ? 24 : 20} className={isActive ? 'relative z-10' : ''} />
               
               {isExpanded && (
-                <span className={`text-xs mt-1 ${isActive ? 'relative z-10' : ''}`}>
+                <span className={`text-xs mt-1 ${isActive ? 'relative z-10 font-medium' : ''} whitespace-nowrap`}>
                   {item.label}
                 </span>
               )}
