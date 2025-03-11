@@ -1,0 +1,65 @@
+/* 侧边栏容器样式 */
+#aetherflow-sidebar-container {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 0;
+  z-index: 9999;
+  overflow: hidden;
+  transition: width 0.3s ease;
+  box-shadow: -5px 0 15px rgba(0, 0, 0, 0.3);
+}
+
+/* 关闭按钮样式 */
+#aetherflow-sidebar-close {
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  width: 30px !important;
+  height: 30px !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 50% !important;
+  font-size: 20px !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  z-index: 10000 !important;
+  display: none !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  opacity: 0.7 !important;
+  transition: opacity 0.2s ease !important;
+}
+
+#aetherflow-sidebar-close:hover {
+  opacity: 1 !important;
+}
+
+/* 浮动按钮样式 */
+#aetherflow-floating-button {
+  position: fixed !important;
+  top: 50% !important;
+  right: 0 !important;
+  transform: translateY(-50%) !important;
+  width: 40px !important;
+  height: 40px !important;
+  background: #7c3aed !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 8px 0 0 8px !important;
+  cursor: pointer !important;
+  z-index: 9998 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2) !important;
+  transition: background 0.2s ease !important;
+}
+
+#aetherflow-floating-button:hover {
+  background: #6d28d9 !important;
+} 

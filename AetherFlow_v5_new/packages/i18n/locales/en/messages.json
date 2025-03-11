@@ -1,0 +1,162 @@
+{
+  "extensionName": {
+    "message": "AetherFlow",
+    "description": "Extension name"
+  },
+  "extensionDescription": {
+    "message": "Unleash AI potential on demand - Prompt management and optimization tool",
+    "description": "Extension description"
+  },
+  "popup_title": {
+    "message": "AetherFlow",
+    "description": "Popup title"
+  },
+  "popup_subtitle": {
+    "message": "Unleash AI potential on demand",
+    "description": "Popup subtitle"
+  },
+  "popup_open_sidebar": {
+    "message": "Open Sidebar",
+    "description": "Open sidebar button"
+  },
+  "popup_open_settings": {
+    "message": "Open Settings",
+    "description": "Open settings button"
+  },
+  "options_title": {
+    "message": "AetherFlow Settings",
+    "description": "Settings page title"
+  },
+  "options_subtitle": {
+    "message": "Customize your AI prompt management experience",
+    "description": "Settings page subtitle"
+  },
+  "options_basic_settings": {
+    "message": "Basic Settings",
+    "description": "Basic settings title"
+  },
+  "options_auto_save": {
+    "message": "Auto Save Conversations",
+    "description": "Auto save conversations option"
+  },
+  "options_auto_save_desc": {
+    "message": "Automatically save conversations with AI platforms",
+    "description": "Auto save conversations option description"
+  },
+  "options_smart_suggestions": {
+    "message": "Smart Suggestions",
+    "description": "Smart suggestions option"
+  },
+  "options_smart_suggestions_desc": {
+    "message": "Enable smart prompt recommendation feature",
+    "description": "Smart suggestions option description"
+  },
+  "options_max_history": {
+    "message": "Maximum History Count",
+    "description": "Maximum history count option"
+  },
+  "options_max_history_desc": {
+    "message": "Maximum number of prompt history records to save",
+    "description": "Maximum history count option description"
+  },
+  "options_ui_settings": {
+    "message": "UI Settings",
+    "description": "UI settings title"
+  },
+  "options_theme": {
+    "message": "Theme",
+    "description": "Theme option"
+  },
+  "options_theme_desc": {
+    "message": "Choose interface theme",
+    "description": "Theme option description"
+  },
+  "options_theme_dark": {
+    "message": "Dark Magic",
+    "description": "Dark theme"
+  },
+  "options_theme_light": {
+    "message": "Light Magic",
+    "description": "Light theme"
+  },
+  "options_theme_system": {
+    "message": "Follow System",
+    "description": "System theme"
+  },
+  "options_reduced_motion": {
+    "message": "Reduce Animations",
+    "description": "Reduce animations option"
+  },
+  "options_reduced_motion_desc": {
+    "message": "Reduce interface animations to improve performance",
+    "description": "Reduce animations option description"
+  },
+  "options_api_settings": {
+    "message": "API Settings",
+    "description": "API settings title"
+  },
+  "options_api_key": {
+    "message": "API Key",
+    "description": "API key option"
+  },
+  "options_api_key_desc": {
+    "message": "API key for prompt optimization and generation",
+    "description": "API key option description"
+  },
+  "options_api_key_placeholder": {
+    "message": "Enter your API key",
+    "description": "API key input placeholder"
+  },
+  "sidepanel_title": {
+    "message": "AetherFlow Sidebar",
+    "description": "Sidebar title"
+  },
+  "prompt_library": {
+    "message": "Prompt Library",
+    "description": "Prompt library tab"
+  },
+  "prompt_enhancement": {
+    "message": "Prompt Enhancement",
+    "description": "Prompt enhancement tab"
+  },
+  "smart_suggestions": {
+    "message": "Smart Suggestions",
+    "description": "Smart suggestions tab"
+  },
+  "settings": {
+    "message": "Settings",
+    "description": "Settings tab"
+  },
+  "search_placeholder": {
+    "message": "Search prompts...",
+    "description": "Search input placeholder"
+  },
+  "no_results": {
+    "message": "No matching prompts found",
+    "description": "No search results message"
+  },
+  "saved_notification": {
+    "message": "✓ Prompt saved",
+    "description": "Save success notification"
+  },
+  "toggleTheme": {
+    "message": "Toggle theme"
+  },
+  "loading": {
+    "message": "Loading..."
+  },
+  "greeting": {
+    "description": "Greeting message",
+    "message": "Hello, My name is $NAME$",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "John Doe"
+      }
+    }
+  },
+  "hello": {
+    "description": "Placeholder example",
+    "message": "Hello $1"
+  }
+}

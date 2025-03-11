@@ -1,0 +1,142 @@
+{
+  "extensionName": {
+    "message": "AetherFlow - 以太流动",
+    "description": "扩展名称"
+  },
+  "extensionDescription": {
+    "message": "让AI潜能随需释放 - 提示词管理与优化工具",
+    "description": "扩展描述"
+  },
+  "popup_title": {
+    "message": "AetherFlow",
+    "description": "弹出窗口标题"
+  },
+  "popup_subtitle": {
+    "message": "让AI潜能随需释放",
+    "description": "弹出窗口副标题"
+  },
+  "popup_open_sidebar": {
+    "message": "打开侧边栏",
+    "description": "打开侧边栏按钮"
+  },
+  "popup_open_settings": {
+    "message": "打开设置",
+    "description": "打开设置按钮"
+  },
+  "options_title": {
+    "message": "AetherFlow 设置",
+    "description": "设置页面标题"
+  },
+  "options_subtitle": {
+    "message": "自定义您的AI提示词管理体验",
+    "description": "设置页面副标题"
+  },
+  "options_basic_settings": {
+    "message": "基本设置",
+    "description": "基本设置标题"
+  },
+  "options_auto_save": {
+    "message": "自动保存对话",
+    "description": "自动保存对话选项"
+  },
+  "options_auto_save_desc": {
+    "message": "自动保存与AI平台的对话内容",
+    "description": "自动保存对话选项描述"
+  },
+  "options_smart_suggestions": {
+    "message": "智能提示",
+    "description": "智能提示选项"
+  },
+  "options_smart_suggestions_desc": {
+    "message": "启用智能提示词推荐功能",
+    "description": "智能提示选项描述"
+  },
+  "options_max_history": {
+    "message": "最大历史记录数",
+    "description": "最大历史记录数选项"
+  },
+  "options_max_history_desc": {
+    "message": "保存的最大提示词历史记录数量",
+    "description": "最大历史记录数选项描述"
+  },
+  "options_ui_settings": {
+    "message": "界面设置",
+    "description": "界面设置标题"
+  },
+  "options_theme": {
+    "message": "主题",
+    "description": "主题选项"
+  },
+  "options_theme_desc": {
+    "message": "选择界面主题",
+    "description": "主题选项描述"
+  },
+  "options_theme_dark": {
+    "message": "暗黑魔法",
+    "description": "暗黑主题"
+  },
+  "options_theme_light": {
+    "message": "光明魔法",
+    "description": "明亮主题"
+  },
+  "options_theme_system": {
+    "message": "跟随系统",
+    "description": "系统主题"
+  },
+  "options_reduced_motion": {
+    "message": "减少动画",
+    "description": "减少动画选项"
+  },
+  "options_reduced_motion_desc": {
+    "message": "减少界面动画效果，提高性能",
+    "description": "减少动画选项描述"
+  },
+  "options_api_settings": {
+    "message": "API设置",
+    "description": "API设置标题"
+  },
+  "options_api_key": {
+    "message": "API密钥",
+    "description": "API密钥选项"
+  },
+  "options_api_key_desc": {
+    "message": "用于提示词优化和生成的API密钥",
+    "description": "API密钥选项描述"
+  },
+  "options_api_key_placeholder": {
+    "message": "输入您的API密钥",
+    "description": "API密钥输入框占位符"
+  },
+  "sidepanel_title": {
+    "message": "AetherFlow 侧边栏",
+    "description": "侧边栏标题"
+  },
+  "prompt_library": {
+    "message": "提示词库",
+    "description": "提示词库标签"
+  },
+  "prompt_enhancement": {
+    "message": "提示词优化",
+    "description": "提示词优化标签"
+  },
+  "smart_suggestions": {
+    "message": "智能推荐",
+    "description": "智能推荐标签"
+  },
+  "settings": {
+    "message": "设置",
+    "description": "设置标签"
+  },
+  "search_placeholder": {
+    "message": "搜索提示词...",
+    "description": "搜索框占位符"
+  },
+  "no_results": {
+    "message": "没有找到匹配的提示词",
+    "description": "无搜索结果提示"
+  },
+  "saved_notification": {
+    "message": "✓ 提示词已保存",
+    "description": "保存成功通知"
+  }
+} 

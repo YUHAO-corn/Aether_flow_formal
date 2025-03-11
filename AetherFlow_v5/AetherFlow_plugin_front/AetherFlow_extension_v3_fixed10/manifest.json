@@ -1,0 +1,62 @@
+{
+  "manifest_version": 3,
+  "name": "AetherFlow",
+  "version": "1.0.0",
+  "description": "AI提示词管理与优化工具",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "https://*.openai.com/*",
+    "https://*.claude.ai/*",
+    "https://*.bard.google.com/*",
+    "https://*.moonshot.cn/*",
+    "https://*.baidu.com/*",
+    "https://*.deepseek.com/*",
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://bard.google.com/*",
+        "https://kimi.moonshot.cn/*",
+        "https://yiyan.baidu.com/*",
+        "https://chat.deepseek.com/*",
+        "<all_urls>"
+      ],
+      "js": ["assets/content-scripts.js", "assets/sidebarManager.js", "assets/apiClient.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "background": {
+    "service_worker": "assets/background.js",
+    "type": "module"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*", "assets/*", "index.html"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+} 
