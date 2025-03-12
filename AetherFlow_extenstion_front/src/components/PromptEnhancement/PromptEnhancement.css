@@ -1,0 +1,229 @@
+.prompt-enhancement {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.enhancement-header {
+  margin-bottom: 20px;
+}
+
+.enhancement-header h2 {
+  margin: 0 0 10px 0;
+  color: #e94560;
+}
+
+.enhancement-header p {
+  margin: 0;
+  font-size: 14px;
+  color: #a0a0a0;
+}
+
+.enhancement-input {
+  margin-bottom: 20px;
+}
+
+.enhancement-input textarea {
+  width: 100%;
+  height: 120px;
+  padding: 12px;
+  border: 1px solid #0f3460;
+  background-color: #16213e;
+  color: #e6e6e6;
+  border-radius: 4px;
+  resize: none;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+.enhance-button {
+  width: 100%;
+  padding: 10px;
+  background-color: #0f3460;
+  color: #e6e6e6;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.enhance-button:hover:not(:disabled) {
+  background-color: #e94560;
+}
+
+.enhance-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.enhancement-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+}
+
+/* 加载动画 - 旋转指示器 */
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid rgba(233, 69, 96, 0.2);
+  border-top: 5px solid #e94560;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 加载动画 - 魔法球 */
+.magic-orb {
+  width: 60px;
+  height: 60px;
+  background: radial-gradient(circle, #e94560, #0f3460);
+  border-radius: 50%;
+  box-shadow: 0 0 20px #e94560;
+  animation: pulse 2s infinite;
+  position: relative;
+}
+
+.magic-orb::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  bottom: -10px;
+  border-radius: 50%;
+  border: 2px solid rgba(233, 69, 96, 0.5);
+  animation: expand 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.8); opacity: 0.8; }
+  50% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(0.8); opacity: 0.8; }
+}
+
+@keyframes expand {
+  0% { transform: scale(0.8); opacity: 0.8; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* 加载动画 - 文字 */
+.enhancing-text {
+  font-size: 18px;
+  color: #e94560;
+  animation: fadeInOut 1.5s infinite;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+
+/* 加载动画 - 结果容器 */
+.result-container-animation {
+  width: 100%;
+  height: 150px;
+  border: 2px solid #e94560;
+  border-radius: 8px;
+  animation: borderGlow 2s infinite;
+  position: relative;
+}
+
+@keyframes borderGlow {
+  0% { box-shadow: 0 0 5px #e94560; }
+  50% { box-shadow: 0 0 15px #e94560; }
+  100% { box-shadow: 0 0 5px #e94560; }
+}
+
+/* 结果区域 */
+.enhancement-result {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background-color: #0f3460;
+}
+
+.result-header h3 {
+  margin: 0;
+  color: #e6e6e6;
+  font-size: 16px;
+}
+
+.copy-button {
+  background: none;
+  border: none;
+  color: #e6e6e6;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.copy-button:hover {
+  color: #e94560;
+}
+
+.result-content {
+  flex: 1;
+  padding: 15px;
+  background-color: #16213e;
+  overflow-y: auto;
+}
+
+.result-content p {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.result-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 10px 15px;
+  background-color: #0f3460;
+}
+
+.action-button {
+  padding: 8px 15px;
+  background-color: #16213e;
+  color: #e6e6e6;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.action-button:hover:not(:disabled) {
+  background-color: #1a1a2e;
+}
+
+.action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-button.primary {
+  background-color: #e94560;
+}
+
+.action-button.primary:hover:not(:disabled) {
+  background-color: #d13d56;
+} 
