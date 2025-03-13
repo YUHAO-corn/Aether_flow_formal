@@ -20,7 +20,17 @@ export default defineConfig({
     watch: {
       usePolling: false,
       ignored: ['**/node_modules/**', '**/dist/**', '**/.git/**'],
-    }
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+      }
+    },
+    cors: true,
+    open: true
   },
   build: {
     chunkSizeWarningLimit: 1000,
@@ -48,5 +58,5 @@ export default defineConfig({
     exclude: [],
     force: true
   },
-  logLevel: 'warn'
+  logLevel: 'info'
 });

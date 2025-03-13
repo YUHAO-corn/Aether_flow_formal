@@ -1,64 +1,67 @@
+/**
+ * 认证中间件
+ * 用于保护路由和授权用户
+ */
+
 const jwt = require('jsonwebtoken');
+const { promisify } = require('util');
 const { User } = require('../models');
-const { unauthorizedResponse, forbiddenResponse } = require('../utils/responseHandler');
+const AppError = require('../utils/appError');
 
 /**
- * 验证JWT令牌
- * @param {Object} req - Express请求对象
- * @param {Object} res - Express响应对象
- * @param {Function} next - Express下一个中间件函数
+ * 保护路由中间件
+ * 验证用户是否已登录
  */
 exports.protect = async (req, res, next) => {
   try {
+    // 1) 获取令牌
     let token;
-    
-    // 从请求头或cookie中获取token
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      // 从Bearer token中提取
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith('Bearer')
+    ) {
       token = req.headers.authorization.split(' ')[1];
-    } else if (req.cookies && req.cookies.token) {
-      // 从cookie中提取
-      token = req.cookies.token;
+    } else if (req.cookies && req.cookies.jwt) {
+      token = req.cookies.jwt;
     }
-    
-    // 检查token是否存在
+
     if (!token) {
-      return unauthorizedResponse(res, 'Please log in to access this resource');
+      return next(new AppError('您未登录！请登录以获取访问权限。', 401));
     }
-    
-    try {
-      // 验证token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
-      // 检查用户是否存在
-      const user = await User.findById(decoded.id);
-      if (!user) {
-        return unauthorizedResponse(res, 'The user belonging to this token no longer exists');
-      }
-      
-      // 将用户信息添加到请求对象
-      req.user = user;
-      next();
-    } catch (error) {
-      return unauthorizedResponse(res, 'Invalid token or token expired');
+
+    // 2) 验证令牌
+    const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
+
+    // 3) 检查用户是否仍然存在
+    const currentUser = await User.findById(decoded.id);
+    if (!currentUser) {
+      return next(new AppError('此令牌所属的用户不再存在。', 401));
     }
+
+    // 4) 检查用户是否在令牌签发后更改了密码
+    if (currentUser.changedPasswordAfter(decoded.iat)) {
+      return next(new AppError('用户最近更改了密码！请重新登录。', 401));
+    }
+
+    // 将用户信息添加到请求对象
+    req.user = currentUser;
+    next();
   } catch (error) {
-    next(error);
+    next(new AppError('认证失败，请重新登录', 401));
   }
 };
 
 /**
- * 限制访问特定角色
- * @param  {...String} roles - 允许访问的角色列表
- * @returns {Function} Express中间件函数
+ * 授权中间件
+ * 限制对特定角色的访问
+ * @param  {...string} roles - 允许的角色
  */
-exports.restrictTo = (...roles) => {
+exports.authorize = (...roles) => {
   return (req, res, next) => {
     // 检查用户角色是否在允许的角色列表中
     if (!roles.includes(req.user.role)) {
-      return forbiddenResponse(res, 'You do not have permission to perform this action');
+      return next(new AppError('您没有执行此操作的权限', 403));
     }
-    
     next();
   };
 }; 

@@ -342,6 +342,57 @@ const manageApiKey = Joi.object({
   })
 });
 
+// API密钥管理验证模式
+const apiKeySchemas = {
+  // 添加API密钥验证
+  addApiKey: Joi.object({
+    provider: Joi.string().valid('openai', 'deepseek', 'moonshot', 'custom').required().messages({
+      'string.empty': '提供商不能为空',
+      'string.valid': '提供商必须是有效值',
+      'any.required': '提供商是必填项'
+    }),
+    key: Joi.string().required().messages({
+      'string.empty': 'API密钥不能为空',
+      'any.required': 'API密钥是必填项'
+    }),
+    name: Joi.string().required().messages({
+      'string.empty': '名称不能为空',
+      'any.required': '名称是必填项'
+    }),
+    baseUrl: Joi.string().uri().when('provider', {
+      is: 'custom',
+      then: Joi.required(),
+      otherwise: Joi.optional()
+    }).messages({
+      'string.uri': '基础URL必须是有效的URI',
+      'any.required': '自定义提供商需要基础URL'
+    }),
+    modelName: Joi.string().when('provider', {
+      is: 'custom',
+      then: Joi.required(),
+      otherwise: Joi.optional()
+    }).messages({
+      'any.required': '自定义提供商需要模型名称'
+    })
+  }),
+
+  // 更新API密钥验证
+  updateApiKey: Joi.object({
+    name: Joi.string().messages({
+      'string.empty': '名称不能为空'
+    }),
+    isActive: Joi.boolean().messages({
+      'boolean.base': '状态必须是布尔值'
+    }),
+    baseUrl: Joi.string().uri().messages({
+      'string.uri': '基础URL必须是有效的URI'
+    }),
+    modelName: Joi.string()
+  }).min(1).messages({
+    'object.min': '至少需要提供一个更新字段'
+  })
+};
+
 module.exports = {
   userSchemas,
   promptSchemas,
@@ -351,5 +402,6 @@ module.exports = {
   idSchema,
   optimizePrompt,
   rateOptimization,
-  manageApiKey
+  manageApiKey,
+  apiKeySchemas
 }; 

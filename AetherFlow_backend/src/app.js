@@ -50,8 +50,11 @@ app.use(cors({
 app.use(compression());
 
 // 检查必要的环境变量
-const requiredEnvVars = ['JWT_SECRET', 'MONGODB_URI'];
-const optionalEnvVars = ['OPENAI_API_KEY', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'ENCRYPTION_KEY'];
+const requiredEnvVars = process.env.NODE_ENV === 'test' 
+  ? ['JWT_SECRET', 'JWT_EXPIRES_IN', 'ENCRYPTION_KEY']
+  : ['MONGODB_URI', 'JWT_SECRET', 'JWT_EXPIRES_IN', 'ENCRYPTION_KEY'];
+
+const optionalEnvVars = ['OPENAI_API_KEY', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY'];
 
 // 检查必要的环境变量
 requiredEnvVars.forEach(envVar => {
@@ -76,7 +79,7 @@ if (!process.env.ENCRYPTION_KEY) {
 }
 
 // 注册路由
-app.use(routes);
+app.use('/api/v1', routes);
 
 // 处理未找到的路由
 app.all('*', (req, res, next) => {

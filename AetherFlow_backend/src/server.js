@@ -1,10 +1,10 @@
+// 加载环境变量
 const dotenv = require('dotenv');
+dotenv.config();
+
 const app = require('./app');
 const connectDB = require('./config/database');
 const logger = require('./utils/logger');
-
-// 加载环境变量
-dotenv.config();
 
 // 连接数据库
 connectDB()

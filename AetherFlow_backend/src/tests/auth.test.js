@@ -2,6 +2,11 @@ const request = require('supertest');
 const app = require('../app');
 const { User } = require('../models');
 const { setupTestUser } = require('./setup');
+const mongoose = require('mongoose');
+const { mockRequest, mockResponse } = require('jest-mock-req-res');
+const authController = require('../controllers/authController');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 describe('认证API测试', () => {
   describe('POST /api/v1/auth/register', () => {
@@ -232,6 +237,284 @@ describe('认证API测试', () => {
       
       expect(response.body.status).toBe('success');
       expect(response.body.message).toContain('成功登出');
+    });
+  });
+});
+
+describe('认证控制器单元测试', () => {
+  let req, res, next;
+  
+  beforeEach(() => {
+    // 重置所有模拟函数
+    jest.clearAllMocks();
+    
+    // 创建请求和响应对象
+    req = mockRequest();
+    res = mockResponse();
+    next = jest.fn();
+  });
+  
+  describe('register', () => {
+    it('应成功注册新用户', async () => {
+      // 设置请求体
+      req.body = {
+        username: 'testuser',
+        email: 'test@example.com',
+        password: 'password123',
+        confirmPassword: 'password123'
+      };
+      
+      // 模拟数据
+      const hashedPassword = 'hashed_password';
+      const mockUser = {
+        _id: new mongoose.Types.ObjectId(),
+        ...req.body,
+        password: hashedPassword,
+        createdAt: new Date()
+      };
+      const mockToken = 'mock_token';
+      
+      // 设置模拟函数返回值
+      User.findOne.mockResolvedValue(null); // 用户不存在
+      bcrypt.hash.mockResolvedValue(hashedPassword);
+      User.create.mockResolvedValue(mockUser);
+      jwt.sign.mockReturnValue(mockToken);
+      
+      // 调用控制器方法
+      await authController.register(req, res, next);
+      
+      // 验证结果
+      expect(User.findOne).toHaveBeenCalledWith({ email: req.body.email });
+      expect(bcrypt.hash).toHaveBeenCalledWith(req.body.password, 10);
+      expect(User.create).toHaveBeenCalledWith({
+        username: req.body.username,
+        email: req.body.email,
+        password: hashedPassword
+      });
+      expect(jwt.sign).toHaveBeenCalled();
+      expect(ActivityLog.create).toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(201);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          token: mockToken,
+          user: {
+            _id: mockUser._id,
+            username: mockUser.username,
+            email: mockUser.email
+          }
+        }
+      });
+    });
+    
+    it('应处理已存在的邮箱', async () => {
+      // 设置请求体
+      req.body = {
+        username: 'testuser',
+        email: 'existing@example.com',
+        password: 'password123',
+        confirmPassword: 'password123'
+      };
+      
+      // 设置模拟函数返回值
+      User.findOne.mockResolvedValue({ email: req.body.email });
+      
+      // 调用控制器方法
+      await authController.register(req, res, next);
+      
+      // 验证结果
+      expect(next).toHaveBeenCalled();
+      expect(next.mock.calls[0][0].statusCode).toBe(400);
+      expect(next.mock.calls[0][0].message).toContain('邮箱已被注册');
+    });
+    
+    it('应处理密码不匹配的情况', async () => {
+      // 设置请求体
+      req.body = {
+        username: 'testuser',
+        email: 'test@example.com',
+        password: 'password123',
+        confirmPassword: 'password456'
+      };
+      
+      // 调用控制器方法
+      await authController.register(req, res, next);
+      
+      // 验证结果
+      expect(next).toHaveBeenCalled();
+      expect(next.mock.calls[0][0].statusCode).toBe(400);
+      expect(next.mock.calls[0][0].message).toContain('密码不匹配');
+    });
+  });
+  
+  describe('login', () => {
+    it('应成功登录用户', async () => {
+      // 设置请求体
+      req.body = {
+        email: 'test@example.com',
+        password: 'password123'
+      };
+      
+      // 模拟数据
+      const mockUser = {
+        _id: new mongoose.Types.ObjectId(),
+        email: req.body.email,
+        password: 'hashed_password'
+      };
+      const mockToken = 'mock_token';
+      
+      // 设置模拟函数返回值
+      User.findOne.mockResolvedValue(mockUser);
+      bcrypt.compare.mockResolvedValue(true);
+      jwt.sign.mockReturnValue(mockToken);
+      
+      // 调用控制器方法
+      await authController.login(req, res, next);
+      
+      // 验证结果
+      expect(User.findOne).toHaveBeenCalledWith({ email: req.body.email });
+      expect(bcrypt.compare).toHaveBeenCalledWith(req.body.password, mockUser.password);
+      expect(jwt.sign).toHaveBeenCalled();
+      expect(ActivityLog.create).toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          token: mockToken,
+          user: {
+            _id: mockUser._id,
+            email: mockUser.email
+          }
+        }
+      });
+    });
+    
+    it('应处理用户不存在的情况', async () => {
+      // 设置请求体
+      req.body = {
+        email: 'nonexistent@example.com',
+        password: 'password123'
+      };
+      
+      // 设置模拟函数返回值
+      User.findOne.mockResolvedValue(null);
+      
+      // 调用控制器方法
+      await authController.login(req, res, next);
+      
+      // 验证结果
+      expect(next).toHaveBeenCalled();
+      expect(next.mock.calls[0][0].statusCode).toBe(401);
+      expect(next.mock.calls[0][0].message).toContain('邮箱或密码错误');
+    });
+    
+    it('应处理密码错误的情况', async () => {
+      // 设置请求体
+      req.body = {
+        email: 'test@example.com',
+        password: 'wrongpassword'
+      };
+      
+      // 模拟数据
+      const mockUser = {
+        email: req.body.email,
+        password: 'hashed_password'
+      };
+      
+      // 设置模拟函数返回值
+      User.findOne.mockResolvedValue(mockUser);
+      bcrypt.compare.mockResolvedValue(false);
+      
+      // 调用控制器方法
+      await authController.login(req, res, next);
+      
+      // 验证结果
+      expect(next).toHaveBeenCalled();
+      expect(next.mock.calls[0][0].statusCode).toBe(401);
+      expect(next.mock.calls[0][0].message).toContain('邮箱或密码错误');
+    });
+  });
+  
+  describe('getMe', () => {
+    it('应成功获取当前用户信息', async () => {
+      // 设置请求用户
+      req.user = {
+        _id: new mongoose.Types.ObjectId(),
+        username: 'testuser',
+        email: 'test@example.com'
+      };
+      
+      // 调用控制器方法
+      await authController.getMe(req, res, next);
+      
+      // 验证结果
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        data: { user: req.user }
+      });
+    });
+  });
+  
+  describe('updateMe', () => {
+    it('应成功更新用户信息', async () => {
+      // 设置请求用户和请求体
+      req.user = {
+        _id: new mongoose.Types.ObjectId(),
+        username: 'testuser',
+        email: 'test@example.com'
+      };
+      req.body = {
+        username: 'newusername',
+        email: 'newemail@example.com'
+      };
+      
+      // 模拟数据
+      const updatedUser = {
+        ...req.user,
+        ...req.body
+      };
+      
+      // 设置模拟函数返回值
+      User.findByIdAndUpdate.mockResolvedValue(updatedUser);
+      
+      // 调用控制器方法
+      await authController.updateMe(req, res, next);
+      
+      // 验证结果
+      expect(User.findByIdAndUpdate).toHaveBeenCalledWith(
+        req.user._id,
+        req.body,
+        { new: true, runValidators: true }
+      );
+      expect(ActivityLog.create).toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        data: { user: updatedUser }
+      });
+    });
+    
+    it('应处理更新用户信息时的错误', async () => {
+      // 设置请求用户和请求体
+      req.user = {
+        _id: new mongoose.Types.ObjectId(),
+        username: 'testuser',
+        email: 'test@example.com'
+      };
+      req.body = {
+        username: 'newusername'
+      };
+      
+      // 设置模拟函数抛出错误
+      const error = new Error('数据库错误');
+      User.findByIdAndUpdate.mockRejectedValue(error);
+      
+      // 调用控制器方法
+      await authController.updateMe(req, res, next);
+      
+      // 验证结果
+      expect(next).toHaveBeenCalledWith(error);
     });
   });
 }); 

@@ -5,6 +5,7 @@ const tagRoutes = require('./tagRoutes');
 const conversationRoutes = require('./conversationRoutes');
 const activityRoutes = require('./activityRoutes');
 const promptOptimizationRoutes = require('./promptOptimizationRoutes');
+const apiKeyRoutes = require('./apiKeyRoutes');
 
 const router = express.Router();
 
@@ -20,5 +21,6 @@ router.use('/tags', tagRoutes);
 router.use('/conversations', conversationRoutes);
 router.use('/activities', activityRoutes);
 router.use('/prompts/optimize', promptOptimizationRoutes);
+router.use('/api-keys', apiKeyRoutes);
 
 module.exports = router; 

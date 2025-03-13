@@ -50,7 +50,8 @@ const userSchema = new mongoose.Schema({
   lastLogin: {
     type: Date,
     default: null
-  }
+  },
+  passwordChangedAt: Date
 }, {
   timestamps: true // 自动添加createdAt和updatedAt字段
 });
@@ -76,6 +77,15 @@ userSchema.pre('save', async function(next) {
 // 比较密码
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
+};
+
+// 检查密码是否在令牌签发后更改
+userSchema.methods.changedPasswordAfter = function(JWTTimestamp) {
+  if (this.passwordChangedAt) {
+    const changedTimestamp = parseInt(this.passwordChangedAt.getTime() / 1000, 10);
+    return JWTTimestamp < changedTimestamp;
+  }
+  return false;
 };
 
 // 生成JWT

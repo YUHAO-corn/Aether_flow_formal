@@ -1,76 +1,52 @@
 /**
  * 日志工具
- * 用于记录应用程序的日志信息，支持不同环境下的日志级别和输出方式
+ * 提供统一的日志记录功能
  */
 
 const winston = require('winston');
 const path = require('path');
 const fs = require('fs');
 
-// 确保日志目录存在
-const logDir = 'logs';
+// 创建日志目录
+const logDir = path.join(process.cwd(), 'logs');
 if (!fs.existsSync(logDir)) {
   fs.mkdirSync(logDir);
 }
 
 // 定义日志格式
-const logFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-  winston.format.errors({ stack: true }),
-  winston.format.splat(),
-  winston.format.json()
-);
-
-// 定义控制台输出格式
-const consoleFormat = winston.format.combine(
-  winston.format.colorize(),
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-  winston.format.printf(
-    info => `${info.timestamp} ${info.level}: ${info.message}${info.stack ? '\n' + info.stack : ''}`
-  )
-);
-
-// 根据环境配置日志级别
-const getLogLevel = () => {
-  const env = process.env.NODE_ENV || 'development';
-  switch (env) {
-    case 'production':
-      return 'info';
-    case 'test':
-      return 'error';
-    default:
-      return 'debug';
-  }
-};
+const logFormat = winston.format.printf(({ level, message, timestamp, ...meta }) => {
+  return `${timestamp} [${level}]: ${message} ${Object.keys(meta).length ? JSON.stringify(meta) : ''}`;
+});
 
 // 创建日志记录器
 const logger = winston.createLogger({
-  level: getLogLevel(),
-  format: logFormat,
+  level: process.env.NODE_ENV === 'development' ? 'debug' : 'info',
+  format: winston.format.combine(
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    winston.format.errors({ stack: true }),
+    winston.format.splat(),
+    logFormat
+  ),
   defaultMeta: { service: 'aetherflow-backend' },
   transports: [
+    // 控制台输出
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        logFormat
+      )
+    }),
     // 错误日志文件
     new winston.transports.File({ 
       filename: path.join(logDir, 'error.log'), 
-      level: 'error',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5
+      level: 'error' 
     }),
     // 所有日志文件
     new winston.transports.File({ 
-      filename: path.join(logDir, 'combined.log'),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5
+      filename: path.join(logDir, 'combined.log') 
     })
   ]
 });
-
-// 非生产环境下添加控制台输出
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: consoleFormat
-  }));
-}
 
 // 测试环境下禁用日志
 if (process.env.NODE_ENV === 'test') {

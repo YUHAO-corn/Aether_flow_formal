@@ -1,21 +1,70 @@
 /**
- * 统一响应处理工具
- * 用于生成标准格式的API响应
+ * 响应处理工具
+ * 用于统一处理API响应格式
  */
 
 /**
  * 成功响应
  * @param {Object} res - Express响应对象
- * @param {Object|Array} data - 响应数据
- * @param {Object} meta - 元数据，如分页信息
- * @param {Number} statusCode - HTTP状态码
- * @returns {Object} 响应对象
+ * @param {*} data - 响应数据
+ * @param {number} statusCode - HTTP状态码
+ * @returns {Object} Express响应对象
  */
-const successResponse = (res, data = {}, meta = {}, statusCode = 200) => {
+exports.successResponse = (res, data, statusCode = 200) => {
   return res.status(statusCode).json({
     success: true,
+    status: 'success',
+    data
+  });
+};
+
+/**
+ * 错误响应
+ * @param {Object} res - Express响应对象
+ * @param {string} message - 错误消息
+ * @param {string} type - 错误类型
+ * @param {number} statusCode - HTTP状态码
+ * @param {Object} metadata - 额外的错误元数据
+ * @returns {Object} Express响应对象
+ */
+exports.errorResponse = (res, message, type = 'SERVER_ERROR', statusCode = 500, metadata = {}) => {
+  return res.status(statusCode).json({
+    success: false,
+    status: 'error',
+    error: {
+      message,
+      type,
+      ...metadata
+    }
+  });
+};
+
+/**
+ * 分页响应
+ * @param {Object} res - Express响应对象
+ * @param {Array} data - 分页数据
+ * @param {number} page - 当前页码
+ * @param {number} limit - 每页数量
+ * @param {number} total - 总数量
+ * @returns {Object} Express响应对象
+ */
+exports.paginatedResponse = (res, data, page, limit, total) => {
+  const totalPages = Math.ceil(total / limit);
+  const hasNextPage = page < totalPages;
+  const hasPrevPage = page > 1;
+  
+  return res.status(200).json({
+    success: true,
+    status: 'success',
     data,
-    meta: Object.keys(meta).length > 0 ? meta : undefined
+    pagination: {
+      total,
+      totalPages,
+      currentPage: page,
+      limit,
+      hasNextPage,
+      hasPrevPage
+    }
   });
 };
 
@@ -26,7 +75,7 @@ const successResponse = (res, data = {}, meta = {}, statusCode = 200) => {
  * @param {String} message - 成功消息
  * @returns {Object} 响应对象
  */
-const createdResponse = (res, data = {}, message = 'Resource created successfully') => {
+exports.createdResponse = (res, data = {}, message = 'Resource created successfully') => {
   return res.status(201).json({
     success: true,
     message,
@@ -35,39 +84,13 @@ const createdResponse = (res, data = {}, message = 'Resource created successfull
 };
 
 /**
- * 错误响应
- * @param {Object} res - Express响应对象
- * @param {String} message - 错误消息
- * @param {String} code - 错误代码
- * @param {Number} statusCode - HTTP状态码
- * @param {String} details - 详细错误信息（仅在开发环境中显示）
- * @returns {Object} 响应对象
- */
-const errorResponse = (res, message = 'Internal Server Error', code = 'SERVER_ERROR', statusCode = 500, details = null) => {
-  const errorObj = {
-    success: false,
-    error: {
-      code,
-      message
-    }
-  };
-
-  // 仅在开发环境中添加详细错误信息
-  if (details && process.env.NODE_ENV === 'development') {
-    errorObj.error.details = details;
-  }
-
-  return res.status(statusCode).json(errorObj);
-};
-
-/**
  * 未找到资源响应
  * @param {Object} res - Express响应对象
  * @param {String} message - 错误消息
  * @returns {Object} 响应对象
  */
-const notFoundResponse = (res, message = 'Resource not found') => {
-  return errorResponse(res, message, 'RESOURCE_NOT_FOUND', 404);
+exports.notFoundResponse = (res, message = 'Resource not found') => {
+  return exports.errorResponse(res, message, 'RESOURCE_NOT_FOUND', 404);
 };
 
 /**
@@ -77,7 +100,7 @@ const notFoundResponse = (res, message = 'Resource not found') => {
  * @param {Object} errors - 验证错误详情
  * @returns {Object} 响应对象
  */
-const validationErrorResponse = (res, message = 'Validation failed', errors = {}) => {
+exports.validationErrorResponse = (res, message = 'Validation failed', errors = {}) => {
   return res.status(400).json({
     success: false,
     error: {
@@ -94,8 +117,8 @@ const validationErrorResponse = (res, message = 'Validation failed', errors = {}
  * @param {String} message - 错误消息
  * @returns {Object} 响应对象
  */
-const unauthorizedResponse = (res, message = 'Unauthorized access') => {
-  return errorResponse(res, message, 'UNAUTHORIZED', 401);
+exports.unauthorizedResponse = (res, message = 'Unauthorized access') => {
+  return exports.errorResponse(res, message, 'UNAUTHORIZED', 401);
 };
 
 /**
@@ -104,16 +127,6 @@ const unauthorizedResponse = (res, message = 'Unauthorized access') => {
  * @param {String} message - 错误消息
  * @returns {Object} 响应对象
  */
-const forbiddenResponse = (res, message = 'Access forbidden') => {
-  return errorResponse(res, message, 'FORBIDDEN', 403);
-};
-
-module.exports = {
-  successResponse,
-  createdResponse,
-  errorResponse,
-  notFoundResponse,
-  validationErrorResponse,
-  unauthorizedResponse,
-  forbiddenResponse
+exports.forbiddenResponse = (res, message = 'Access forbidden') => {
+  return exports.errorResponse(res, message, 'FORBIDDEN', 403);
 }; 

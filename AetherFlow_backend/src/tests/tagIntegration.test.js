@@ -4,15 +4,14 @@
 
 const mongoose = require('mongoose');
 const supertest = require('supertest');
-const { MongoMemoryServer } = require('mongodb-memory-server');
 const app = require('../app');
 const User = require('../models/User');
 const Tag = require('../models/Tag');
+const Prompt = require('../models/Prompt');
 const ActivityLog = require('../models/ActivityLog');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
-let mongoServer;
 let api;
 
 // 测试用户数据
@@ -25,7 +24,7 @@ const testUser = {
 
 // 测试标签数据
 const testTag = {
-  name: 'TestTag',
+  name: 'AI',
   color: '#3498db'
 };
 
@@ -36,30 +35,15 @@ const updatedTag = {
 };
 
 beforeAll(async () => {
-  // 设置内存MongoDB服务器
-  mongoServer = await MongoMemoryServer.create();
-  const mongoUri = mongoServer.getUri();
-  
-  // 连接到内存数据库
-  await mongoose.connect(mongoUri, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-  });
-  
   // 创建API测试客户端
   api = supertest(app);
-});
-
-afterAll(async () => {
-  // 断开数据库连接并停止MongoDB服务器
-  await mongoose.disconnect();
-  await mongoServer.stop();
 });
 
 beforeEach(async () => {
   // 清空数据库集合
   await User.deleteMany({});
   await Tag.deleteMany({});
+  await Prompt.deleteMany({});
   await ActivityLog.deleteMany({});
   
   // 创建测试用户
