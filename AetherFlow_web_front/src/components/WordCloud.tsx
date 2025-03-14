@@ -1,127 +1,169 @@
-import React, { useEffect, useRef, useMemo } from 'react';
-import * as d3 from 'd3';
+import React, { useEffect, useRef, useState } from 'react';
+import { useSpring, animated } from 'react-spring';
 import cloud from 'd3-cloud';
 
-interface Tag {
-  name: string;
-  count: number;
-}
-
 interface WordCloudProps {
-  tags: Tag[];
+  tags: { name: string; count: number }[];
   expanded: boolean;
 }
 
 const WordCloud: React.FC<WordCloudProps> = ({ tags, expanded }) => {
-  const svgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [words, setWords] = useState<any[]>([]);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [rotation, setRotation] = useState(0);
   
-  // 使用useMemo缓存计算结果，避免重复计算
-  const processedData = useMemo(() => {
-    // 计算最大和最小值，用于缩放字体大小
-    const maxCount = Math.max(...tags.map(tag => tag.count));
-    const minCount = Math.min(...tags.map(tag => tag.count));
-    
-    // 字体大小范围
-    const minFontSize = 12;
-    const maxFontSize = expanded ? 40 : 28;
-    
-    // 处理数据，计算每个标签的字体大小
-    return tags.map(tag => ({
-      text: tag.name,
-      size: minFontSize + ((tag.count - minCount) / (maxCount - minCount)) * (maxFontSize - minFontSize),
-      count: tag.count,
-      // 使用固定的颜色范围，避免每次渲染都生成新颜色
-      color: `hsl(${(tag.name.length * 5) % 360}, 70%, ${50 + (tag.count / maxCount) * 20}%)`
-    }));
-  }, [tags, expanded]);
+  // Rotation animation
+  const rotationAnimation = useSpring({
+    from: { rotation: 0 },
+    to: { rotation: 360 },
+    config: { duration: 100000, tension: 120, friction: 14 },
+    loop: true,
+    reset: true
+  });
   
-  // 使用useMemo缓存布局计算
-  const dimensions = useMemo(() => {
-    const width = expanded ? 800 : 600;
-    const height = expanded ? 500 : 300;
-    return { width, height };
+  useEffect(() => {
+    if (!containerRef.current) return;
+    
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        setDimensions({
+          width: containerRef.current.offsetWidth,
+          height: containerRef.current.offsetHeight
+        });
+      }
+    };
+    
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    
+    return () => {
+      window.removeEventListener('resize', updateDimensions);
+    };
   }, [expanded]);
   
   useEffect(() => {
-    if (!svgRef.current || processedData.length === 0) return;
+    if (dimensions.width === 0 || dimensions.height === 0) return;
     
-    const svg = d3.select(svgRef.current);
-    svg.selectAll("*").remove();
+    // Normalize tag counts for sizing
+    const maxCount = Math.max(...tags.map(tag => tag.count));
+    const minCount = Math.min(...tags.map(tag => tag.count));
+    const minSize = 14;
+    const maxSize = expanded ? 48 : 32;
     
-    const { width, height } = dimensions;
-    
-    // 创建词云布局
-    const layout = cloud()
-      .size([width, height])
-      .words(processedData)
+    // Create layout
+    cloud()
+      .size([dimensions.width, dimensions.height])
+      .words(tags.map(tag => ({
+        text: tag.name,
+        size: minSize + ((tag.count - minCount) / (maxCount - minCount)) * (maxSize - minSize),
+        count: tag.count
+      })))
       .padding(5)
-      .rotate(() => 0) // 不旋转单词，提高可读性
-      .font("Inter")
-      .fontSize(d => (d as any).size)
-      .on("end", draw);
+      .rotate(() => Math.random() > 0.5 ? 0 : 90 * Math.round(Math.random()) - 45)
+      .fontSize(d => d.size)
+      .on('end', output => {
+        setWords(output);
+      })
+      .start();
     
-    // 启动布局计算
-    layout.start();
+    // Rotate the cloud slightly every few seconds
+    const interval = setInterval(() => {
+      setRotation(prev => (prev + 0.1) % 360);
+    }, 100);
     
-    // 绘制词云
-    function draw(words: any) {
-      svg
-        .attr("width", width)
-        .attr("height", height)
-        .append("g")
-        .attr("transform", `translate(${width / 2},${height / 2})`)
-        .selectAll("text")
-        .data(words)
-        .enter()
-        .append("text")
-        .style("font-size", d => `${d.size}px`)
-        .style("font-family", "Inter, sans-serif")
-        .style("fill", d => d.color)
-        .attr("text-anchor", "middle")
-        .attr("transform", d => `translate(${d.x},${d.y})`)
-        .text(d => d.text)
-        .style("cursor", "pointer")
-        .style("opacity", 0)
-        .transition()
-        .duration(500)
-        .delay((d, i) => i * 20)
-        .style("opacity", 1)
-        .on("end", function() {
-          // 添加悬停效果
-          d3.select(this)
-            .on("mouseover", function() {
-              d3.select(this)
-                .transition()
-                .duration(200)
-                .style("font-size", d => `${(d as any).size * 1.2}px`)
-                .style("font-weight", "bold");
-            })
-            .on("mouseout", function() {
-              d3.select(this)
-                .transition()
-                .duration(200)
-                .style("font-size", d => `${(d as any).size}px`)
-                .style("font-weight", "normal");
-            });
-        });
-      
-      // 添加提示信息
-      svg.selectAll("text")
-        .append("title")
-        .text(d => `${d.text}: ${d.count} prompts`);
-    }
-    
-    // 清理函数
-    return () => {
-      svg.selectAll("*").remove();
-    };
-  }, [processedData, dimensions]);
+    return () => clearInterval(interval);
+  }, [tags, dimensions, expanded]);
+  
+  // Colors for the nebula effect
+  const colors = [
+    'text-blue-400', 'text-purple-400', 'text-indigo-400', 
+    'text-violet-400', 'text-fuchsia-400', 'text-pink-400',
+    'text-cyan-400', 'text-teal-400'
+  ];
   
   return (
-    <div className="w-full h-full flex items-center justify-center">
-      <svg ref={svgRef} className="w-full h-full"></svg>
+    <div 
+      ref={containerRef} 
+      className="w-full h-full relative overflow-hidden"
+      style={{ perspective: '1000px' }}
+    >
+      {/* Particle effects */}
+      <div className="absolute inset-0 pointer-events-none">
+        {Array.from({ length: 50 }).map((_, i) => {
+          const size = Math.random() * 3 + 1;
+          const top = Math.random() * 100;
+          const left = Math.random() * 100;
+          const animationDuration = Math.random() * 10 + 10;
+          const delay = Math.random() * 5;
+          
+          return (
+            <div 
+              key={i}
+              className="absolute rounded-full bg-purple-400/30"
+              style={{
+                width: `${size}px`,
+                height: `${size}px`,
+                top: `${top}%`,
+                left: `${left}%`,
+                animation: `float ${animationDuration}s ease-in-out ${delay}s infinite`,
+                opacity: Math.random() * 0.5 + 0.2
+              }}
+            />
+          );
+        })}
+      </div>
+      
+      {/* 3D Word Cloud */}
+      <animated.div 
+        className="absolute inset-0 flex items-center justify-center"
+        style={{
+          transform: rotationAnimation.rotation.to(r => `rotateY(${r * 0.05}deg) rotateX(${Math.sin(r * 0.01) * 5}deg)`)
+        }}
+      >
+        {words.map((word, i) => {
+          const color = colors[i % colors.length];
+          const fontSize = word.size;
+          const opacity = 0.7 + (word.size / 48) * 0.3;
+          
+          return (
+            <animated.div
+              key={i}
+              className={`absolute ${color} hover:text-white transition-all duration-300 cursor-pointer`}
+              style={{
+                fontSize: `${fontSize}px`,
+                fontWeight: word.size > 24 ? 'bold' : 'normal',
+                transform: `translate(${word.x}px, ${word.y}px) rotate(${word.rotate}deg)`,
+                opacity,
+                textShadow: `0 0 ${fontSize / 4}px currentColor`
+              }}
+            >
+              {word.text}
+            </animated.div>
+          );
+        })}
+      </animated.div>
+      
+      <style>
+        {`
+          @keyframes float {
+            0%, 100% {
+              transform: translateY(0) translateX(0);
+            }
+            25% {
+              transform: translateY(-10px) translateX(5px);
+            }
+            50% {
+              transform: translateY(5px) translateX(-5px);
+            }
+            75% {
+              transform: translateY(10px) translateX(10px);
+            }
+          }
+        `}
+      </style>
     </div>
   );
 };
 
-export default React.memo(WordCloud); // 使用React.memo避免不必要的重渲染
+export default WordCloud;

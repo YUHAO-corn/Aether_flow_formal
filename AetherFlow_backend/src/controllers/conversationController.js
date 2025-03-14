@@ -80,7 +80,7 @@ exports.createConversation = async (req, res, next) => {
     // 记录活动
     await ActivityLog.create({
       user: req.user.id,
-      action: 'create',
+      action: 'create_conversation',
       entityType: 'Conversation',
       entityId: newConversation._id,
       details: { title: newConversation.title }
@@ -154,7 +154,7 @@ exports.updateConversation = async (req, res, next) => {
     // 记录活动
     await ActivityLog.create({
       user: req.user.id,
-      action: 'update',
+      action: 'update_conversation',
       entityType: 'Conversation',
       entityId: updatedConversation._id,
       details: { title: updatedConversation.title }
@@ -192,7 +192,7 @@ exports.deleteConversation = async (req, res, next) => {
     // 记录活动
     await ActivityLog.create({
       user: req.user.id,
-      action: 'delete',
+      action: 'delete_conversation',
       entityType: 'Conversation',
       entityId: req.params.id,
       details: { title: conversation.title }

@@ -33,6 +33,12 @@ router.post('/batch',
   promptController.getBatchPrompts
 );
 
+// 批量操作提示词（更新或删除）
+router.post('/bulk-operation',
+  validator.validateBody(promptSchemas.bulkOperation),
+  promptController.bulkOperationPrompts
+);
+
 // 获取最近使用的提示词
 router.get('/recent',
   promptController.getRecentPrompts
@@ -47,6 +53,17 @@ router.get('/quick-search',
 router.post('/enhance',
   validator.validateBody(promptSchemas.enhancePrompt),
   promptController.enhancePrompt
+);
+
+// 导出提示词
+router.get('/export',
+  promptController.exportPrompts
+);
+
+// 导入提示词
+router.post('/import',
+  validator.validateBody(promptSchemas.importPrompts),
+  promptController.importPrompts
 );
 
 // 获取单个提示词

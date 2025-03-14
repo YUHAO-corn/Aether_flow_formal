@@ -4,6 +4,59 @@ const { Prompt, Tag, ActivityLog } = require('../models');
 const promptService = require('../services/promptService');
 const tagService = require('../services/tagService');
 const activityLogService = require('../services/activityLogService');
+const { MongoMemoryServer } = require('mongodb-memory-server');
+const { 
+  userService, 
+  conversationService,
+  apiKeyService,
+  activityService,
+  promptOptimizationService
+} = require('../services');
+const { User, Conversation, ApiKey, OptimizationHistory } = require('../models');
+
+let mongoServer;
+
+// 测试数据
+const testUser = {
+  username: 'testuser',
+  email: 'test@example.com',
+  password: 'password123'
+};
+
+const testPrompt = {
+  content: '这是一个测试提示词',
+  response: '这是测试回答',
+  platform: 'test-platform'
+};
+
+const testTag = {
+  name: '测试标签',
+  color: '#FF5733'
+};
+
+// 在所有测试之前连接到内存数据库
+beforeAll(async () => {
+  mongoServer = await MongoMemoryServer.create();
+  const uri = mongoServer.getUri();
+  await mongoose.connect(uri);
+});
+
+// 在所有测试之后断开连接并关闭内存数据库
+afterAll(async () => {
+  await mongoose.disconnect();
+  await mongoServer.stop();
+});
+
+// 在每个测试之前清空数据库
+beforeEach(async () => {
+  await User.deleteMany({});
+  await Prompt.deleteMany({});
+  await Tag.deleteMany({});
+  await Conversation.deleteMany({});
+  await ApiKey.deleteMany({});
+  await ActivityLog.deleteMany({});
+  await OptimizationHistory.deleteMany({});
+});
 
 // 模拟模型
 jest.mock('../models/Prompt', () => ({
@@ -315,4 +368,215 @@ describe('服务层单元测试', () => {
       });
     });
   });
-}); 
+});
+
+describe('用户服务测试', () => {
+  test('创建用户', async () => {
+    const user = await userService.createUser(testUser);
+    expect(user).toBeDefined();
+    expect(user.username).toBe(testUser.username);
+    expect(user.email).toBe(testUser.email);
+    expect(user.password).not.toBe(testUser.password); // 密码应该被加密
+  });
+
+  test('通过ID查找用户', async () => {
+    const createdUser = await userService.createUser(testUser);
+    const user = await userService.getUserById(createdUser._id);
+    expect(user).toBeDefined();
+    expect(user.username).toBe(testUser.username);
+    expect(user.email).toBe(testUser.email);
+  });
+
+  test('通过邮箱查找用户', async () => {
+    await userService.createUser(testUser);
+    const user = await userService.getUserByEmail(testUser.email);
+    expect(user).toBeDefined();
+    expect(user.username).toBe(testUser.username);
+    expect(user.email).toBe(testUser.email);
+  });
+
+  test('更新用户', async () => {
+    const createdUser = await userService.createUser(testUser);
+    const updatedUser = await userService.updateUser(createdUser._id, { username: 'updateduser' });
+    expect(updatedUser).toBeDefined();
+    expect(updatedUser.username).toBe('updateduser');
+    expect(updatedUser.email).toBe(testUser.email);
+  });
+});
+
+describe('提示词服务测试', () => {
+  let userId;
+
+  beforeEach(async () => {
+    const user = await userService.createUser(testUser);
+    userId = user._id;
+  });
+
+  test('创建提示词', async () => {
+    const prompt = await promptService.createPrompt({
+      ...testPrompt,
+      user: userId
+    });
+    expect(prompt).toBeDefined();
+    expect(prompt.content).toBe(testPrompt.content);
+    expect(prompt.response).toBe(testPrompt.response);
+    expect(prompt.platform).toBe(testPrompt.platform);
+    expect(prompt.user.toString()).toBe(userId.toString());
+  });
+
+  test('获取用户的所有提示词', async () => {
+    await promptService.createPrompt({
+      ...testPrompt,
+      user: userId
+    });
+    
+    await promptService.createPrompt({
+      content: '第二个测试提示词',
+      response: '第二个测试回答',
+      platform: 'test-platform',
+      user: userId
+    });
+
+    const prompts = await promptService.getPromptsByUser(userId);
+    expect(prompts).toBeDefined();
+    expect(prompts.length).toBe(2);
+    expect(prompts[0].user.toString()).toBe(userId.toString());
+    expect(prompts[1].user.toString()).toBe(userId.toString());
+  });
+
+  test('通过ID获取提示词', async () => {
+    const createdPrompt = await promptService.createPrompt({
+      ...testPrompt,
+      user: userId
+    });
+
+    const prompt = await promptService.getPromptById(createdPrompt._id);
+    expect(prompt).toBeDefined();
+    expect(prompt.content).toBe(testPrompt.content);
+    expect(prompt.response).toBe(testPrompt.response);
+    expect(prompt.user.toString()).toBe(userId.toString());
+  });
+
+  test('更新提示词', async () => {
+    const createdPrompt = await promptService.createPrompt({
+      ...testPrompt,
+      user: userId
+    });
+
+    const updatedPrompt = await promptService.updatePrompt(createdPrompt._id, {
+      content: '更新后的提示词'
+    });
+
+    expect(updatedPrompt).toBeDefined();
+    expect(updatedPrompt.content).toBe('更新后的提示词');
+    expect(updatedPrompt.response).toBe(testPrompt.response);
+    expect(updatedPrompt.user.toString()).toBe(userId.toString());
+  });
+
+  test('删除提示词', async () => {
+    const createdPrompt = await promptService.createPrompt({
+      ...testPrompt,
+      user: userId
+    });
+
+    await promptService.deletePrompt(createdPrompt._id);
+    const prompt = await promptService.getPromptById(createdPrompt._id);
+    expect(prompt).toBeNull();
+  });
+
+  test('搜索提示词', async () => {
+    await promptService.createPrompt({
+      content: '测试关键词搜索',
+      response: '测试回答',
+      platform: 'test-platform',
+      user: userId
+    });
+
+    await promptService.createPrompt({
+      content: '不匹配的提示词',
+      response: '测试回答',
+      platform: 'test-platform',
+      user: userId
+    });
+
+    const prompts = await promptService.searchPrompts(userId, '关键词');
+    expect(prompts).toBeDefined();
+    expect(prompts.length).toBe(1);
+    expect(prompts[0].content).toBe('测试关键词搜索');
+  });
+
+  test('添加标签到提示词', async () => {
+    const createdTag = await tagService.createTag({
+      ...testTag,
+      user: userId
+    });
+
+    const createdPrompt = await promptService.createPrompt({
+      ...testPrompt,
+      user: userId
+    });
+
+    const updatedPrompt = await promptService.addTagToPrompt(createdPrompt._id, createdTag._id);
+    expect(updatedPrompt).toBeDefined();
+    expect(updatedPrompt.tags.length).toBe(1);
+    expect(updatedPrompt.tags[0].toString()).toBe(createdTag._id.toString());
+  });
+
+  test('从提示词移除标签', async () => {
+    const createdTag = await tagService.createTag({
+      ...testTag,
+      user: userId
+    });
+
+    const createdPrompt = await promptService.createPrompt({
+      ...testPrompt,
+      user: userId,
+      tags: [createdTag._id]
+    });
+
+    const updatedPrompt = await promptService.removeTagFromPrompt(createdPrompt._id, createdTag._id);
+    expect(updatedPrompt).toBeDefined();
+    expect(updatedPrompt.tags.length).toBe(0);
+  });
+});
+
+describe('标签服务测试', () => {
+  let userId;
+
+  beforeEach(async () => {
+    const user = await userService.createUser(testUser);
+    userId = user._id;
+  });
+
+  test('创建标签', async () => {
+    const tag = await tagService.createTag({
+      ...testTag,
+      user: userId
+    });
+    expect(tag).toBeDefined();
+    expect(tag.name).toBe(testTag.name);
+    expect(tag.color).toBe(testTag.color);
+    expect(tag.user.toString()).toBe(userId.toString());
+  });
+
+  test('获取用户的所有标签', async () => {
+    await tagService.createTag({
+      ...testTag,
+      user: userId
+    });
+    
+    await tagService.createTag({
+      name: '第二个测试标签',
+      color: '#33FF57',
+      user: userId
+    });
+
+    const tags = await tagService.getTagsByUser(userId);
+    expect(tags).toBeDefined();
+    expect(tags.length).toBe(2);
+    expect(tags[0].user.toString()).toBe(userId.toString());
+    expect(tags[1].user.toString()).toBe(userId.toString());
+  });
+});
+
+// 添加更多服务测试... 

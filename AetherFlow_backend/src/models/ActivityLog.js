@@ -18,18 +18,27 @@ const activityLogSchema = new mongoose.Schema({
       'delete_prompt', 
       'favorite_prompt', 
       'use_prompt',
+      'auto_save_prompt',
       'create_tag',
       'update_tag',
       'delete_tag',
       'create_conversation',
       'update_conversation',
       'delete_conversation',
-      'enhance_prompt'
+      'add_message',
+      'clear_messages',
+      'enhance_prompt',
+      'optimize',
+      'rate_optimization',
+      'create_api_key',
+      'update_api_key',
+      'delete_api_key',
+      'clear_activities'
     ]
   },
   entityType: {
     type: String,
-    enum: ['user', 'prompt', 'tag', 'conversation', null],
+    enum: ['User', 'Prompt', 'Tag', 'Conversation', 'OptimizationHistory', 'ApiKey', 'prompt', 'tag', 'conversation', 'api_key', 'activity_log', null],
     default: null
   },
   entityId: {

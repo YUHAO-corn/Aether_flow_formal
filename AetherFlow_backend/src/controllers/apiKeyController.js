@@ -3,6 +3,7 @@ const ActivityLog = require('../models/ActivityLog');
 const AppError = require('../utils/appError');
 const { successResponse } = require('../utils/responseHandler');
 const logger = require('../utils/logger');
+const OpenAI = require('openai');
 
 /**
  * 添加API密钥
@@ -12,7 +13,7 @@ const logger = require('../utils/logger');
  */
 exports.addApiKey = async (req, res, next) => {
   try {
-    const { provider, key, name, baseUrl, modelName } = req.body;
+    const { provider, key, name } = req.body;
     
     // 检查是否已存在相同提供商的API密钥
     const existingKey = await ApiKey.findOne({ 
@@ -21,7 +22,26 @@ exports.addApiKey = async (req, res, next) => {
     });
     
     if (existingKey) {
-      return next(new AppError(`已存在${provider}的API密钥`, 'DUPLICATE_RESOURCE', 400));
+      return next(new AppError(`已存在${provider}的API密钥`, 'DUPLICATE_RESOURCE', 409));
+    }
+
+    // 验证 API 密钥
+    try {
+      if (provider === 'deepseek') {
+        const openai = new OpenAI({
+          baseURL: 'https://api.deepseek.com',
+          apiKey: key
+        });
+
+        // 尝试调用 API 验证密钥
+        await openai.chat.completions.create({
+          messages: [{ role: "system", content: "Test message" }],
+          model: "deepseek-chat",
+        });
+      }
+    } catch (error) {
+      logger.error(`验证API密钥失败: ${error.message}`);
+      return next(new AppError('API密钥验证失败，请检查密钥是否正确', 'INVALID_API_KEY', 400));
     }
     
     // 加密API密钥
@@ -34,8 +54,8 @@ exports.addApiKey = async (req, res, next) => {
       encryptedKey,
       iv,
       name,
-      baseUrl,
-      modelName,
+      baseUrl: provider === 'deepseek' ? 'https://api.deepseek.com' : '',
+      modelName: provider === 'deepseek' ? 'deepseek-chat' : '',
       isActive: true
     });
     
@@ -43,9 +63,9 @@ exports.addApiKey = async (req, res, next) => {
     await ActivityLog.create({
       user: req.user._id,
       action: 'create_api_key',
-      entityType: 'api_key',
+      entityType: 'ApiKey',
       entityId: apiKey._id,
-      metadata: {
+      details: {
         provider,
         name
       }
@@ -123,9 +143,24 @@ exports.verifyApiKey = async (req, res, next) => {
     let isValid = false;
     
     try {
-      // 这里应该实现实际的API密钥验证逻辑
-      // 为了测试，我们假设验证成功
-      isValid = true;
+      if (apiKey.provider === 'deepseek') {
+        // 调用DeepSeek API进行验证
+        const response = await fetch('https://api.deepseek.com/v1/models', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${decryptedKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        isValid = response.ok;
+        if (!isValid) {
+          logger.error(`DeepSeek API密钥验证失败: ${response.statusText}`);
+        }
+      } else {
+        // 其他提供商的验证逻辑
+        isValid = true; // 临时设置为true，等待实现其他提供商的验证
+      }
     } catch (error) {
       logger.error(`验证API密钥失败: ${error.message}`);
       isValid = false;
@@ -231,8 +266,8 @@ exports.deleteApiKey = async (req, res, next) => {
     await ActivityLog.create({
       user: req.user._id,
       action: 'delete_api_key',
-      entityType: 'api_key',
-      metadata: {
+      entityType: 'ApiKey',
+      details: {
         provider: apiKey.provider,
         name: apiKey.name
       }

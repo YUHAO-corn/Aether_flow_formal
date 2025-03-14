@@ -1,80 +1,197 @@
-import React, { useEffect, useRef } from 'react';
-import { Chart, RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend } from 'chart.js';
-import { Radar } from 'react-chartjs-2';
-
-// 注册Chart.js组件
-Chart.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
+import React, { useRef, useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 
 interface RadarChartProps {
   data: {
-    labels: string[];
-    datasets: Array<{
-      label: string;
-      data: number[];
-      backgroundColor: string;
-      borderColor: string;
-      borderWidth: number;
-    }>;
+    relevance: number;
+    clarity: number;
+    diversity: number;
+    innovation: number;
+    actionability: number;
   };
-  options?: any;
+  expanded: boolean;
 }
 
-const RadarChart: React.FC<RadarChartProps> = ({ data, options }) => {
-  const chartRef = useRef<Chart | null>(null);
+const RadarChart: React.FC<RadarChartProps> = ({ data, expanded }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [hoveredDimension, setHoveredDimension] = useState<string | null>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   
-  // 默认配置
-  const defaultOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      r: {
-        angleLines: {
-          color: 'rgba(255, 255, 255, 0.1)'
-        },
-        grid: {
-          color: 'rgba(255, 255, 255, 0.1)'
-        },
-        pointLabels: {
-          color: 'rgba(255, 255, 255, 0.7)',
-          font: {
-            size: 12
-          }
-        },
-        ticks: {
-          backdropColor: 'transparent',
-          color: 'rgba(255, 255, 255, 0.5)',
-          z: 100
+  useEffect(() => {
+    if (!containerRef.current) return;
+    
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        setDimensions({ width, height });
+      }
+    };
+    
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    
+    return () => {
+      window.removeEventListener('resize', updateDimensions);
+    };
+  }, [expanded]);
+  
+  useEffect(() => {
+    if (!canvasRef.current || dimensions.width === 0) return;
+    
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Set canvas dimensions
+    canvas.width = dimensions.width;
+    canvas.height = dimensions.height;
+    
+    // Calculate center and radius
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = Math.min(centerX, centerY) * 0.8;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw background grid
+    const levels = 5;
+    ctx.strokeStyle = 'rgba(107, 114, 128, 0.3)';
+    ctx.fillStyle = 'rgba(107, 114, 128, 0.1)';
+    
+    for (let i = 1; i <= levels; i++) {
+      ctx.beginPath();
+      const levelRadius = (radius / levels) * i;
+      
+      // Draw pentagon for each level
+      for (let j = 0; j < 5; j++) {
+        const angle = (Math.PI * 2 * j) / 5 - Math.PI / 2;
+        const x = centerX + levelRadius * Math.cos(angle);
+        const y = centerY + levelRadius * Math.sin(angle);
+        
+        if (j === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
         }
       }
-    },
-    plugins: {
-      legend: {
-        position: 'bottom',
-        labels: {
-          color: 'rgba(255, 255, 255, 0.7)',
-          font: {
-            size: 12
-          },
-          boxWidth: 15,
-          padding: 15
-        }
-      },
-      tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        titleColor: 'rgba(255, 255, 255, 0.9)',
-        bodyColor: 'rgba(255, 255, 255, 0.9)',
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        borderWidth: 1
+      
+      ctx.closePath();
+      ctx.stroke();
+      if (i === levels) {
+        ctx.fill();
       }
     }
-  };
-  
-  // 合并选项
-  const mergedOptions = { ...defaultOptions, ...options };
+    
+    // Draw axes
+    ctx.strokeStyle = 'rgba(167, 139, 250, 0.6)';
+    ctx.beginPath();
+    
+    const dimensionNames = ['relevance', 'clarity', 'diversity', 'innovation', 'actionability'];
+    const dimensionLabels = ['Relevance', 'Clarity', 'Diversity', 'Innovation', 'Actionability'];
+    
+    dimensionNames.forEach((dim, i) => {
+      const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+      const x = centerX + radius * Math.cos(angle);
+      const y = centerY + radius * Math.sin(angle);
+      
+      ctx.moveTo(centerX, centerY);
+      ctx.lineTo(x, y);
+      
+      // Draw dimension labels
+      ctx.font = 'bold 12px Inter, sans-serif';
+      ctx.fillStyle = hoveredDimension === dim ? 'rgba(167, 139, 250, 1)' : 'rgba(209, 213, 219, 1)';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      // Position labels slightly outside the chart
+      const labelRadius = radius * 1.1;
+      const labelX = centerX + labelRadius * Math.cos(angle);
+      const labelY = centerY + labelRadius * Math.sin(angle);
+      
+      ctx.fillText(dimensionLabels[i], labelX, labelY);
+    });
+    
+    ctx.stroke();
+    
+    // Draw data
+    ctx.beginPath();
+    
+    dimensionNames.forEach((dim, i) => {
+      const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+      const value = data[dim as keyof typeof data];
+      const x = centerX + radius * value * Math.cos(angle);
+      const y = centerY + radius * value * Math.sin(angle);
+      
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(139, 92, 246, 0.3)';
+    ctx.fill();
+    
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(139, 92, 246, 0.8)';
+    ctx.stroke();
+    
+    // Draw data points
+    dimensionNames.forEach((dim, i) => {
+      const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+      const value = data[dim as keyof typeof data];
+      const x = centerX + radius * value * Math.cos(angle);
+      const y = centerY + radius * value * Math.sin(angle);
+      
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(139, 92, 246, 1)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+  }, [dimensions, data, hoveredDimension]);
   
   return (
-    <div className="w-full h-full min-h-[300px]">
-      <Radar data={data} options={mergedOptions} />
+    <div ref={containerRef} className="w-full h-full relative">
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full"
+        onMouseMove={(e) => {
+          const rect = canvasRef.current?.getBoundingClientRect();
+          if (!rect || !canvasRef.current) return;
+          
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          
+          // Calculate center and radius
+          const centerX = rect.width / 2;
+          const centerY = rect.height / 2;
+          const radius = Math.min(centerX, centerY) * 0.8;
+          
+          // Check if mouse is near any dimension point
+          const dimensionNames = ['relevance', 'clarity', 'diversity', 'innovation', 'actionability'];
+          
+          const hoveredDim = dimensionNames.find((_, i) => {
+            const angle = (Math.PI * 2 * i) / 5 - Math.PI / 2;
+            const pointX = centerX + radius * Math.cos(angle);
+            const pointY = centerY + radius * Math.sin(angle);
+            
+            const distance = Math.sqrt(
+              Math.pow(x - pointX, 2) + Math.pow(y - pointY, 2)
+            );
+            
+            return distance < 20;
+          });
+          
+          setHoveredDimension(hoveredDim || null);
+        }}
+        onMouseLeave={() => setHoveredDimension(null)}
+      />
     </div>
   );
 };

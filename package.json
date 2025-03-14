@@ -7,12 +7,26 @@
     "doc": "docs"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node tests/integration/test-all-features.js",
+    "test:health": "node tests/integration/test-health.js",
+    "test:auth": "node tests/integration/test-auth.js",
+    "test:api": "node tests/integration/test-api-connection.js",
+    "test:prompt": "node tests/integration/test-prompt-auto-save.js",
+    "test:conversation": "node tests/integration/test-conversation-management.js",
+    "test:activity": "node tests/integration/test-activity-log.js",
+    "test:optimization": "node tests/integration/test-prompt-optimization.js",
+    "test:apikey": "node tests/integration/test-api-key-management.js",
+    "test:web": "node tests/web/web-test.js",
+    "start:backend": "bash scripts/start-backend.sh",
+    "start:test": "bash scripts/start-and-test.sh",
+    "check:web-env": "bash scripts/check-web-test-env.sh",
+    "start:web-test": "bash scripts/start-web-test.sh"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "axios": "^1.8.3",
     "bcryptjs": "^3.0.2",
     "compression": "^1.8.0",
     "cookie-parser": "^1.4.7",
@@ -26,6 +40,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.12.1",
     "morgan": "^1.10.0",
+    "puppeteer": "^22.6.0",
     "winston": "^3.8.2",
     "xss-clean": "^0.1.4"
   }

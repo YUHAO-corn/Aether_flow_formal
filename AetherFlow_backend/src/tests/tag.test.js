@@ -4,6 +4,9 @@ const Tag = require('../models/Tag');
 const Prompt = require('../models/Prompt');
 const ActivityLog = require('../models/ActivityLog');
 const tagController = require('../controllers/tagController');
+const request = require('supertest');
+const app = require('../app');
+const User = require('../models/User');
 
 // 模拟Tag模型
 jest.mock('../models/Tag', () => {
@@ -327,6 +330,109 @@ describe('标签控制器单元测试', () => {
         success: true,
         data: { prompts: mockPrompts }
       });
+    });
+  });
+});
+
+let token;
+let userId;
+let tagId;
+
+beforeAll(async () => {
+  // 创建测试用户
+  const userData = {
+    name: 'Test User',
+    email: 'tagtest@example.com',
+    password: 'password123'
+  };
+  
+  const userResponse = await request(app)
+    .post('/api/v1/auth/register')
+    .send(userData);
+  
+  token = userResponse.body.data.token;
+  userId = userResponse.body.data.user._id;
+  
+  // 创建测试标签
+  const tagData = {
+    name: 'Test Tag',
+    color: '#ff0000'
+  };
+  
+  const tagResponse = await request(app)
+    .post('/api/v1/tags')
+    .set('Authorization', `Bearer ${token}`)
+    .send(tagData);
+  
+  tagId = tagResponse.body.data._id;
+  
+  // 创建测试提示词并关联标签
+  const promptData = {
+    title: 'Test Prompt',
+    content: 'This is a test prompt',
+    tags: [tagId]
+  };
+  
+  await request(app)
+    .post('/api/v1/prompts')
+    .set('Authorization', `Bearer ${token}`)
+    .send(promptData);
+});
+
+afterAll(async () => {
+  // 清理测试数据
+  await Tag.deleteMany({ user: userId });
+  await Prompt.deleteMany({ user: userId });
+  await User.deleteMany({ email: 'tagtest@example.com' });
+  await mongoose.connection.close();
+});
+
+describe('Tag API', () => {
+  describe('GET /api/v1/tags', () => {
+    it('should get all tags', async () => {
+      const res = await request(app)
+        .get('/api/v1/tags')
+        .set('Authorization', `Bearer ${token}`);
+      
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data.length).toBeGreaterThan(0);
+    });
+  });
+  
+  describe('GET /api/v1/tags/:id', () => {
+    it('should get a tag by id', async () => {
+      const res = await request(app)
+        .get(`/api/v1/tags/${tagId}`)
+        .set('Authorization', `Bearer ${token}`);
+      
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data._id).toEqual(tagId);
+    });
+  });
+  
+  describe('GET /api/v1/tags/statistics', () => {
+    it('should get tag statistics', async () => {
+      const res = await request(app)
+        .get('/api/v1/tags/statistics')
+        .set('Authorization', `Bearer ${token}`);
+      
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('totalTags');
+      expect(res.body.data).toHaveProperty('tagsWithPrompts');
+      expect(res.body.data).toHaveProperty('mostUsedTags');
+      expect(res.body.data).toHaveProperty('recentlyCreatedTags');
+      expect(res.body.data).toHaveProperty('promptDistribution');
+      
+      // 验证统计数据
+      expect(res.body.data.totalTags).toBeGreaterThan(0);
+      expect(res.body.data.tagsWithPrompts).toBeGreaterThan(0);
+      expect(Array.isArray(res.body.data.mostUsedTags)).toBe(true);
+      expect(Array.isArray(res.body.data.recentlyCreatedTags)).toBe(true);
+      expect(Array.isArray(res.body.data.promptDistribution)).toBe(true);
     });
   });
 }); 

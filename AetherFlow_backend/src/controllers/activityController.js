@@ -9,7 +9,7 @@ const mongoose = require('mongoose');
  * @param {Object} res - Express响应对象
  * @returns {Object} 活动日志列表和分页信息
  */
-const getActivities = async (req, res) => {
+const getActivities = async (req, res, next) => {
   try {
     // 构建查询条件
     const query = { user: req.user.id };
@@ -78,7 +78,7 @@ const getActivities = async (req, res) => {
  * @param {Object} res - Express响应对象
  * @returns {Object} 活动统计信息
  */
-const getActivityStats = async (req, res) => {
+const getActivityStats = async (req, res, next) => {
   try {
     const { startDate, endDate } = req.query;
     
@@ -88,78 +88,71 @@ const getActivityStats = async (req, res) => {
     
     // 验证日期格式
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return errorResponse(res, '无效的日期格式', 'INVALID_DATE_FORMAT', 400);
+      return errorResponse(res, '无效的日期格式', 400);
     }
     
-    // 按操作类型统计
-    const actionStats = await ActivityLog.aggregate([
-      {
-        $match: {
-          user: mongoose.Types.ObjectId(req.user.id),
-          createdAt: { $gte: start, $lte: end }
-        }
-      },
-      {
-        $group: {
-          _id: '$action',
-          count: { $sum: 1 }
-        }
-      },
-      {
-        $sort: { count: -1 }
-      }
-    ]);
+    // 使用简单查询替代聚合查询
+    // 获取所有符合条件的活动日志
+    const activities = await ActivityLog.find({
+      user: req.user.id,
+      createdAt: { $gte: start, $lte: end }
+    });
     
-    // 按实体类型统计
-    const entityStats = await ActivityLog.aggregate([
-      {
-        $match: {
-          user: mongoose.Types.ObjectId(req.user.id),
-          createdAt: { $gte: start, $lte: end }
-        }
-      },
-      {
-        $group: {
-          _id: '$entityType',
-          count: { $sum: 1 }
-        }
-      },
-      {
-        $sort: { count: -1 }
-      }
-    ]);
+    // 手动统计
+    const actionStats = {};
+    const entityStats = {};
+    const dateStats = {};
     
-    // 按日期统计
-    const dateStats = await ActivityLog.aggregate([
-      {
-        $match: {
-          user: mongoose.Types.ObjectId(req.user.id),
-          createdAt: { $gte: start, $lte: end }
-        }
-      },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-          count: { $sum: 1 }
-        }
-      },
-      {
-        $sort: { _id: 1 }
+    activities.forEach(activity => {
+      // 按操作类型统计
+      if (!actionStats[activity.action]) {
+        actionStats[activity.action] = 0;
       }
-    ]);
+      actionStats[activity.action]++;
+      
+      // 按实体类型统计
+      const entityType = activity.entityType || 'unknown';
+      if (!entityStats[entityType]) {
+        entityStats[entityType] = 0;
+      }
+      entityStats[entityType]++;
+      
+      // 按日期统计
+      const dateStr = activity.createdAt.toISOString().split('T')[0];
+      if (!dateStats[dateStr]) {
+        dateStats[dateStr] = 0;
+      }
+      dateStats[dateStr]++;
+    });
+    
+    // 转换为数组格式
+    const actionStatsArray = Object.keys(actionStats).map(key => ({
+      _id: key,
+      count: actionStats[key]
+    })).sort((a, b) => b.count - a.count);
+    
+    const entityStatsArray = Object.keys(entityStats).map(key => ({
+      _id: key,
+      count: entityStats[key]
+    })).sort((a, b) => b.count - a.count);
+    
+    const dateStatsArray = Object.keys(dateStats).map(key => ({
+      _id: key,
+      count: dateStats[key]
+    })).sort((a, b) => a._id.localeCompare(b._id));
     
     return successResponse(res, {
-      actionStats,
-      entityStats,
-      dateStats,
+      actionStats: actionStatsArray,
+      entityStats: entityStatsArray,
+      dateStats: dateStatsArray,
       period: {
         start: start.toISOString(),
         end: end.toISOString()
       }
     });
   } catch (error) {
-    logger.error(`获取活动统计失败: ${error.message}`, { error, userId: req.user?.id });
-    return errorResponse(res, '获取活动统计失败', 'FETCH_ACTIVITY_STATS_ERROR', 500);
+    logger.error(`获取活动统计失败: ${error.message}`);
+    return next(error);
   }
 };
 
@@ -169,9 +162,9 @@ const getActivityStats = async (req, res) => {
  * @param {Object} res - Express响应对象
  * @returns {Object} 清除结果
  */
-const clearActivities = async (req, res) => {
+const clearActivities = async (req, res, next) => {
   try {
-    const { olderThan } = req.query;
+    const { olderThan, days, action, entityType } = req.query;
     
     let query = { user: req.user.id };
     
@@ -181,10 +174,25 @@ const clearActivities = async (req, res) => {
       
       // 验证日期格式
       if (isNaN(date.getTime())) {
-        return errorResponse(res, '无效的日期格式', 'INVALID_DATE_FORMAT', 400);
+        return errorResponse(res, '无效的日期格式', 400);
       }
       
       query.createdAt = { $lt: date };
+    } else if (days) {
+      // 如果指定了天数，则删除指定天数之前的日志
+      const daysAgo = new Date();
+      daysAgo.setDate(daysAgo.getDate() - parseInt(days, 10));
+      query.createdAt = { $lt: daysAgo };
+    }
+    
+    // 按操作类型筛选
+    if (action) {
+      query.action = action;
+    }
+    
+    // 按实体类型筛选
+    if (entityType) {
+      query.entityType = entityType;
     }
     
     // 执行删除操作
@@ -197,7 +205,9 @@ const clearActivities = async (req, res) => {
       entityType: 'activity_log',
       details: {
         count: result.deletedCount,
-        olderThan: olderThan || 'all'
+        olderThan: olderThan || (days ? `${days}天前` : 'all'),
+        action: action || 'all',
+        entityType: entityType || 'all'
       }
     });
     
@@ -206,8 +216,8 @@ const clearActivities = async (req, res) => {
       deletedCount: result.deletedCount
     });
   } catch (error) {
-    logger.error(`清除活动日志失败: ${error.message}`, { error, userId: req.user?.id });
-    return errorResponse(res, '清除活动日志失败', 'CLEAR_ACTIVITIES_ERROR', 500);
+    logger.error(`清除活动日志失败: ${error.message}`);
+    return next(error);
   }
 };
 
@@ -217,13 +227,13 @@ const clearActivities = async (req, res) => {
  * @param {Object} res - Express响应对象
  * @returns {Object} 活动记录
  */
-const getActivity = async (req, res) => {
+const getActivity = async (req, res, next) => {
   try {
     const { id } = req.params;
     
     // 验证ID格式
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return errorResponse(res, '无效的活动ID', 'INVALID_ID', 400);
+      return errorResponse(res, '无效的活动ID', 400);
     }
     
     // 查找活动记录
@@ -241,8 +251,8 @@ const getActivity = async (req, res) => {
     
     return successResponse(res, { activity });
   } catch (error) {
-    logger.error(`获取活动记录失败: ${error.message}`, { error, userId: req.user?.id });
-    return errorResponse(res, '获取活动记录失败', 'FETCH_ACTIVITY_ERROR', 500);
+    logger.error(`获取活动记录失败: ${error.message}`);
+    return next(error);
   }
 };
 

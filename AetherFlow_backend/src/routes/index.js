@@ -6,6 +6,7 @@ const conversationRoutes = require('./conversationRoutes');
 const activityRoutes = require('./activityRoutes');
 const promptOptimizationRoutes = require('./promptOptimizationRoutes');
 const apiKeyRoutes = require('./apiKeyRoutes');
+const monitorRoutes = require('./monitorRoutes');
 
 const router = express.Router();
 
@@ -22,5 +23,8 @@ router.use('/conversations', conversationRoutes);
 router.use('/activities', activityRoutes);
 router.use('/prompts/optimize', promptOptimizationRoutes);
 router.use('/api-keys', apiKeyRoutes);
+
+// 监控路由
+router.use('/monitor', monitorRoutes);
 
 module.exports = router; 

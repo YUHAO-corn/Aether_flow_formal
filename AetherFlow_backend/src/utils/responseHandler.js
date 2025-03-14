@@ -11,6 +11,90 @@
  * @returns {Object} Express响应对象
  */
 exports.successResponse = (res, data, statusCode = 200) => {
+  // 处理提示词列表响应
+  if (Array.isArray(data) && data.length > 0 && data[0].content !== undefined) {
+    // 转换_id为id
+    const transformedData = data.map(item => {
+      const { _id, ...rest } = item.toObject ? item.toObject() : item;
+      return {
+        ...rest,
+        id: _id.toString()
+      };
+    });
+    
+    // 返回前端期望的格式
+    return res.status(statusCode).json({
+      data: {
+        prompts: transformedData
+      }
+    });
+  }
+  
+  // 处理单个提示词响应
+  if (data && data.content !== undefined) {
+    const { _id, ...rest } = data.toObject ? data.toObject() : data;
+    const transformedPrompt = {
+      ...rest,
+      id: _id.toString()
+    };
+    
+    return res.status(statusCode).json({
+      data: {
+        prompt: transformedPrompt
+      }
+    });
+  }
+  
+  // 处理标签列表响应
+  if (Array.isArray(data) && data.length > 0 && data[0].name !== undefined && data[0].color !== undefined) {
+    const transformedTags = data.map(item => {
+      const { _id, ...rest } = item.toObject ? item.toObject() : item;
+      return {
+        ...rest,
+        id: _id.toString()
+      };
+    });
+    
+    return res.status(statusCode).json({
+      data: {
+        tags: transformedTags
+      }
+    });
+  }
+  
+  // 处理单个标签响应
+  if (data && data.name !== undefined && data.color !== undefined) {
+    const { _id, ...rest } = data.toObject ? data.toObject() : data;
+    const transformedTag = {
+      ...rest,
+      id: _id.toString()
+    };
+    
+    return res.status(statusCode).json({
+      data: {
+        tag: transformedTag
+      }
+    });
+  }
+  
+  // 处理用户认证响应
+  if (data && data.token) {
+    return res.status(statusCode).json({
+      data: {
+        user: data.user ? {
+          ...data.user,
+          id: data.user._id ? data.user._id.toString() : data.userId
+        } : {
+          id: data.userId,
+          username: data.username,
+          email: data.email || ''
+        },
+        token: data.token
+      }
+    });
+  }
+  
+  // 默认响应格式，保持原有格式以兼容其他客户端
   return res.status(statusCode).json({
     success: true,
     status: 'success',
@@ -53,6 +137,58 @@ exports.paginatedResponse = (res, data, page, limit, total) => {
   const hasNextPage = page < totalPages;
   const hasPrevPage = page > 1;
   
+  // 处理提示词列表分页响应
+  if (data.length > 0 && data[0].content !== undefined) {
+    // 转换_id为id
+    const transformedData = data.map(item => {
+      const { _id, ...rest } = item.toObject ? item.toObject() : item;
+      return {
+        ...rest,
+        id: _id.toString()
+      };
+    });
+    
+    return res.status(200).json({
+      data: {
+        prompts: transformedData
+      },
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage,
+        hasPrevPage
+      }
+    });
+  }
+  
+  // 处理标签列表分页响应
+  if (data.length > 0 && data[0].name !== undefined && data[0].color !== undefined) {
+    const transformedTags = data.map(item => {
+      const { _id, ...rest } = item.toObject ? item.toObject() : item;
+      return {
+        ...rest,
+        id: _id.toString()
+      };
+    });
+    
+    return res.status(200).json({
+      data: {
+        tags: transformedTags
+      },
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage,
+        hasPrevPage
+      }
+    });
+  }
+  
+  // 默认分页响应格式
   return res.status(200).json({
     success: true,
     status: 'success',
@@ -76,6 +212,37 @@ exports.paginatedResponse = (res, data, page, limit, total) => {
  * @returns {Object} 响应对象
  */
 exports.createdResponse = (res, data = {}, message = 'Resource created successfully') => {
+  // 处理创建提示词响应
+  if (data && data.content !== undefined) {
+    const { _id, ...rest } = data.toObject ? data.toObject() : data;
+    const transformedPrompt = {
+      ...rest,
+      id: _id.toString()
+    };
+    
+    return res.status(201).json({
+      data: {
+        prompt: transformedPrompt
+      }
+    });
+  }
+  
+  // 处理创建标签响应
+  if (data && data.name !== undefined && data.color !== undefined) {
+    const { _id, ...rest } = data.toObject ? data.toObject() : data;
+    const transformedTag = {
+      ...rest,
+      id: _id.toString()
+    };
+    
+    return res.status(201).json({
+      data: {
+        tag: transformedTag
+      }
+    });
+  }
+  
+  // 默认创建响应格式
   return res.status(201).json({
     success: true,
     message,

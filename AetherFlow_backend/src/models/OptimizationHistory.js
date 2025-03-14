@@ -14,8 +14,22 @@ const optimizationHistorySchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  improvements: String,
-  expectedBenefits: String,
+  improvements: {
+    type: String,
+    default: '',
+    set: value => {
+      if (Array.isArray(value)) return value.join('\n');
+      return value.toString();
+    }
+  },
+  expectedBenefits: {
+    type: String,
+    default: '',
+    set: value => {
+      if (Array.isArray(value)) return value.join('\n');
+      return value.toString();
+    }
+  },
   category: {
     type: String,
     default: 'general'
@@ -35,8 +49,14 @@ const optimizationHistorySchema = new mongoose.Schema({
   },
   iterations: [{
     optimizedPrompt: String,
-    improvements: String,
-    expectedBenefits: String,
+    improvements: {
+      type: String,
+      default: ''
+    },
+    expectedBenefits: {
+      type: String,
+      default: ''
+    },
     timestamp: {
       type: Date,
       default: Date.now

@@ -1,13 +1,15 @@
 const express = require('express');
-const { tagController } = require('../controllers');
-const { validator } = require('../middlewares');
-const { tagSchemas, idSchema, promptSchemas } = require('../utils/validationSchemas');
-const { protect } = require('../middlewares/auth');
-
 const router = express.Router();
+const tagController = require('../controllers/tagController');
+const { protect } = require('../middlewares/auth');
+const validator = require('../middlewares/validator');
+const { tagSchemas, idSchema, promptSchemas } = require('../utils/validationSchemas');
 
 // 所有路由都需要认证
 router.use(protect);
+
+// 获取标签统计信息 - 需要放在具体ID路由之前
+router.get('/statistics', tagController.getTagStatistics);
 
 // 获取标签列表
 router.get('/', tagController.getTags);

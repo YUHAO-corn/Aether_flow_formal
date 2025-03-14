@@ -130,7 +130,7 @@ const App = () => {
           )}
         </main>
         
-        {autoSaveEnabled && <AutoSave reducedMotion={reducedMotion} />}
+        <AutoSave enabled={autoSaveEnabled} />
 
         <AnimatePresence>
           {isModalOpen && selectedPrompt && (

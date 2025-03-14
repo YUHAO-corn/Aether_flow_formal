@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ModalProps {
   children: React.ReactNode;
@@ -8,46 +9,50 @@ interface ModalProps {
 const Modal: React.FC<ModalProps> = ({ children, onClose }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   
-  // 处理点击外部关闭
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
         onClose();
       }
     };
     
-    // 处理ESC键关闭
-    const handleEscKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
         onClose();
       }
     };
     
-    // 添加事件监听
+    document.addEventListener('keydown', handleEscape);
     document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscKey);
     
-    // 禁止背景滚动
+    // Prevent scrolling on the body when modal is open
     document.body.style.overflow = 'hidden';
     
-    // 清理函数
     return () => {
+      document.removeEventListener('keydown', handleEscape);
       document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscKey);
       document.body.style.overflow = 'auto';
     };
   }, [onClose]);
   
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 animate-fadeIn">
-      <div 
+    <motion.div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+      initial={{ backgroundColor: 'rgba(0, 0, 0, 0)' }}
+      animate={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}
+      exit={{ backgroundColor: 'rgba(0, 0, 0, 0)' }}
+    >
+      <motion.div 
         ref={modalRef}
-        className="bg-gray-800 rounded-xl shadow-xl max-w-4xl max-h-[90vh] overflow-auto scale-in"
-        onClick={(e) => e.stopPropagation()}
+        className="bg-gray-800 border border-gray-700 rounded-xl shadow-2xl shadow-purple-900/20 max-w-4xl w-full max-h-[90vh] overflow-auto"
+        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
       >
         {children}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 

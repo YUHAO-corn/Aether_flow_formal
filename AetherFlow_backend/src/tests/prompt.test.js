@@ -1,10 +1,49 @@
+const mongoose = require('mongoose');
 const request = require('supertest');
 const app = require('../app');
-const { Prompt, Tag } = require('../models');
-const { setupTestUser } = require('./setup');
-const mongoose = require('mongoose');
+const { Prompt, Tag, User } = require('../models');
 const { mockRequest, mockResponse } = require('jest-mock-req-res');
 const promptController = require('../controllers/promptController');
+const jwt = require('jsonwebtoken');
+
+// 模拟Prompt模型
+jest.mock('../models', () => {
+  const originalModule = jest.requireActual('../models');
+  return {
+    ...originalModule,
+    Prompt: {
+      ...originalModule.Prompt,
+      find: jest.fn(),
+      findById: jest.fn(),
+      findOne: jest.fn(),
+      create: jest.fn(),
+      findByIdAndUpdate: jest.fn(),
+      findByIdAndDelete: jest.fn(),
+      countDocuments: jest.fn(),
+      aggregate: jest.fn()
+    }
+  };
+});
+
+// 测试用户设置函数
+const setupTestUser = async () => {
+  // 创建测试用户
+  const user = new User({
+    username: `testuser${Date.now()}`,
+    email: `test${Date.now()}@example.com`,
+    password: 'Password123!'
+  });
+  await user.save();
+  
+  // 生成JWT令牌
+  const token = jwt.sign(
+    { id: user._id },
+    process.env.JWT_SECRET || 'test-secret',
+    { expiresIn: '1h' }
+  );
+  
+  return { user, token };
+};
 
 describe('提示词API测试', () => {
   describe('POST /api/v1/prompts/auto-save', () => {

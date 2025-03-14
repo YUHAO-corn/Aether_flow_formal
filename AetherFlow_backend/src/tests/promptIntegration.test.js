@@ -11,6 +11,7 @@ const Tag = require('../models/Tag');
 const ActivityLog = require('../models/ActivityLog');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const request = require('supertest');
 
 let api;
 
@@ -942,5 +943,198 @@ describe('提示词管理集成测试', () => {
       expect(response.body.success).toBe(false);
       expect(response.body.error).toBeDefined();
     });
+  });
+});
+
+describe('提示词标签管理', () => {
+  let token;
+  let promptId;
+  let tagId;
+
+  beforeEach(async () => {
+    // 创建测试用户
+    const registerResponse = await request(app)
+      .post('/api/v1/auth/register')
+      .send({
+        username: 'testuser',
+        email: 'test@example.com',
+        password: 'password123',
+        passwordConfirm: 'password123'
+      });
+
+    token = registerResponse.body.data.token;
+
+    // 创建测试提示词
+    const promptResponse = await request(app)
+      .post('/api/v1/prompts')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        content: '这是一个测试提示词',
+        response: '这是测试回答',
+        platform: 'test-platform'
+      });
+
+    promptId = promptResponse.body.data._id;
+
+    // 创建测试标签
+    const tagResponse = await request(app)
+      .post('/api/v1/tags')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: '测试标签',
+        color: '#FF5733'
+      });
+
+    tagId = tagResponse.body.data._id;
+  });
+
+  test('添加标签到提示词', async () => {
+    const response = await request(app)
+      .post(`/api/v1/prompts/${promptId}/tags`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        tagId
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.tags).toContain(tagId);
+  });
+
+  test('从提示词移除标签', async () => {
+    // 先添加标签
+    await request(app)
+      .post(`/api/v1/prompts/${promptId}/tags`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        tagId
+      });
+
+    // 然后移除标签
+    const response = await request(app)
+      .delete(`/api/v1/prompts/${promptId}/tags/${tagId}`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.tags).not.toContain(tagId);
+  });
+
+  test('通过标签筛选提示词', async () => {
+    // 创建第二个提示词
+    const promptResponse2 = await request(app)
+      .post('/api/v1/prompts')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        content: '第二个测试提示词',
+        response: '第二个测试回答',
+        platform: 'test-platform'
+      });
+
+    const promptId2 = promptResponse2.body.data._id;
+
+    // 给第一个提示词添加标签
+    await request(app)
+      .post(`/api/v1/prompts/${promptId}/tags`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        tagId
+      });
+
+    // 通过标签筛选提示词
+    const response = await request(app)
+      .get(`/api/v1/prompts?tag=${tagId}`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.length).toBe(1);
+    expect(response.body.data[0]._id).toBe(promptId);
+  });
+});
+
+describe('提示词收藏功能', () => {
+  let token;
+  let promptId;
+
+  beforeEach(async () => {
+    // 创建测试用户
+    const registerResponse = await request(app)
+      .post('/api/v1/auth/register')
+      .send({
+        username: 'testuser',
+        email: 'test@example.com',
+        password: 'password123',
+        passwordConfirm: 'password123'
+      });
+
+    token = registerResponse.body.data.token;
+
+    // 创建测试提示词
+    const promptResponse = await request(app)
+      .post('/api/v1/prompts')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        content: '这是一个测试提示词',
+        response: '这是测试回答',
+        platform: 'test-platform'
+      });
+
+    promptId = promptResponse.body.data._id;
+  });
+
+  test('收藏提示词', async () => {
+    const response = await request(app)
+      .patch(`/api/v1/prompts/${promptId}/favorite`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.isFavorite).toBe(true);
+  });
+
+  test('取消收藏提示词', async () => {
+    // 先收藏提示词
+    await request(app)
+      .patch(`/api/v1/prompts/${promptId}/favorite`)
+      .set('Authorization', `Bearer ${token}`);
+
+    // 然后取消收藏
+    const response = await request(app)
+      .patch(`/api/v1/prompts/${promptId}/unfavorite`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.isFavorite).toBe(false);
+  });
+
+  test('获取收藏的提示词', async () => {
+    // 创建第二个提示词
+    const promptResponse2 = await request(app)
+      .post('/api/v1/prompts')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        content: '第二个测试提示词',
+        response: '第二个测试回答',
+        platform: 'test-platform'
+      });
+
+    const promptId2 = promptResponse2.body.data._id;
+
+    // 收藏第一个提示词
+    await request(app)
+      .patch(`/api/v1/prompts/${promptId}/favorite`)
+      .set('Authorization', `Bearer ${token}`);
+
+    // 获取收藏的提示词
+    const response = await request(app)
+      .get('/api/v1/prompts?favorite=true')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.length).toBe(1);
+    expect(response.body.data[0]._id).toBe(promptId);
   });
 }); 

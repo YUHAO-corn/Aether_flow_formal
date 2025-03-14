@@ -91,6 +91,23 @@ const promptSchemas = {
     favorite: Joi.boolean().default(false)
   }),
 
+  // 自动保存Prompt验证
+  autoSavePrompt: Joi.object({
+    content: Joi.string().required().min(10)
+      .messages({
+        'string.base': 'Content must be a string',
+        'string.empty': 'Content is required',
+        'string.min': 'Content must be at least {#limit} characters long',
+        'any.required': 'Content is required'
+      }),
+    response: Joi.string().allow('', null),
+    platform: Joi.string().allow('', null),
+    url: Joi.string().uri().allow('', null)
+      .messages({
+        'string.uri': 'URL must be a valid URI'
+      })
+  }),
+
   // 更新Prompt验证
   updatePrompt: Joi.object({
     content: Joi.string()
@@ -102,39 +119,72 @@ const promptSchemas = {
     favorite: Joi.boolean()
   }),
 
-  // 自动保存Prompt验证
-  autoSavePrompt: Joi.object({
-    content: Joi.string().required()
-      .messages({
-        'string.base': 'Content must be a string',
-        'string.empty': 'Content is required',
-        'any.required': 'Content is required'
-      }),
-    response: Joi.string().allow('', null),
-    platform: Joi.string().required()
-      .messages({
-        'string.base': 'Platform must be a string',
-        'string.empty': 'Platform is required',
-        'any.required': 'Platform is required'
-      }),
-    url: Joi.string().uri().allow('', null)
-      .messages({
-        'string.uri': 'URL must be a valid URI'
-      })
-  }),
-
   // 批量获取Prompt验证
   batchPrompts: Joi.object({
-    ids: Joi.array().items(
-      Joi.string().pattern(/^[0-9a-fA-F]{24}$/)
-        .messages({
-          'string.pattern.base': 'ID must be a valid MongoDB ObjectId'
-        })
-    ).required()
+    ids: Joi.array().items(Joi.string()).required()
       .messages({
         'array.base': 'IDs must be an array',
         'array.empty': 'IDs array cannot be empty',
         'any.required': 'IDs are required'
+      })
+  }),
+
+  // 批量操作提示词验证
+  bulkOperation: Joi.object({
+    operation: Joi.string().valid('update', 'delete').required()
+      .messages({
+        'string.base': 'Operation must be a string',
+        'string.empty': 'Operation is required',
+        'string.valid': 'Operation must be either "update" or "delete"',
+        'any.required': 'Operation is required'
+      }),
+    promptIds: Joi.array().items(Joi.string()).min(1).required()
+      .messages({
+        'array.base': 'Prompt IDs must be an array',
+        'array.min': 'At least one prompt ID is required',
+        'any.required': 'Prompt IDs are required'
+      }),
+    data: Joi.object({
+      tags: Joi.array().items(Joi.string()),
+      favorite: Joi.boolean(),
+      title: Joi.string().min(1).max(100)
+    }).when('operation', {
+      is: 'update',
+      then: Joi.required(),
+      otherwise: Joi.forbidden()
+    })
+      .messages({
+        'object.base': 'Data must be an object',
+        'any.required': 'Data is required for update operation',
+        'any.unknown': 'Data contains invalid fields'
+      })
+  }),
+
+  // 导入提示词验证
+  importPrompts: Joi.object({
+    prompts: Joi.array().items(
+      Joi.object({
+        content: Joi.string().required()
+          .messages({
+            'string.base': 'Content must be a string',
+            'string.empty': 'Content is required',
+            'any.required': 'Content is required'
+          }),
+        title: Joi.string().allow('', null),
+        response: Joi.string().allow('', null),
+        platform: Joi.string().allow('', null),
+        url: Joi.string().uri().allow('', null)
+          .messages({
+            'string.uri': 'URL must be a valid URI'
+          }),
+        tagNames: Joi.array().items(Joi.string()),
+        favorite: Joi.boolean().default(false)
+      })
+    ).min(1).required()
+      .messages({
+        'array.base': 'Prompts must be an array',
+        'array.min': 'At least one prompt is required',
+        'any.required': 'Prompts are required'
       })
   }),
 

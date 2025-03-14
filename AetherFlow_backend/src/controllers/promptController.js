@@ -1,6 +1,6 @@
-const { Prompt, Tag, ActivityLog } = require('../models');
+const { Prompt, Tag, ActivityLog, User } = require('../models');
 const { AppError } = require('../middlewares/errorHandler');
-const { successResponse, createdResponse, notFoundResponse } = require('../utils/responseHandler');
+const { successResponse, createdResponse, notFoundResponse, paginatedResponse } = require('../utils/responseHandler');
 const logger = require('../utils/logger');
 
 /**
@@ -16,7 +16,7 @@ exports.getPrompts = async (req, res, next) => {
     
     // 搜索
     if (req.query.search) {
-      queryObj.$text = { $search: req.query.search };
+      queryObj.content = { $regex: req.query.search, $options: 'i' };
     }
     
     // 标签筛选
@@ -58,12 +58,7 @@ exports.getPrompts = async (req, res, next) => {
     const total = await Prompt.countDocuments(queryObj);
     
     // 发送响应
-    return successResponse(res, prompts, {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit)
-    });
+    return paginatedResponse(res, prompts, page, limit, total);
   } catch (error) {
     next(error);
   }
@@ -384,105 +379,58 @@ exports.enhancePrompt = async (req, res, next) => {
 
 /**
  * 自动保存提示词
- * @param {Object} req - Express请求对象
- * @param {Object} res - Express响应对象
- * @param {Function} next - Express下一个中间件函数
+ * @route POST /api/prompts/auto-save
+ * @access Private
  */
 exports.autoSavePrompt = async (req, res, next) => {
   try {
     const { content, response, platform, url } = req.body;
     
-    // 验证必要字段
-    if (!content) {
-      return next(new AppError('提示词内容不能为空', 'VALIDATION_ERROR', 400));
-    }
+    // 获取用户ID
+    const userId = req.user.id;
     
-    // 检查是否已存在相同内容的提示词（避免短时间内重复保存）
-    // 修改判断逻辑：同时考虑content、platform和url，并添加时间阈值
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000); // 5分钟前
-    
+    // 检查是否已存在相同内容的提示词（防止重复保存）
     const existingPrompt = await Prompt.findOne({
-      user: req.user._id,
-      content,
-      platform,
-      url: url || { $exists: false },
-      updatedAt: { $gte: fiveMinutesAgo } // 只检查5分钟内的记录
+      user: userId,
+      content: content,
+      createdAt: { $gt: new Date(Date.now() - 24 * 60 * 60 * 1000) } // 24小时内
     });
     
     if (existingPrompt) {
-      // 如果已存在，更新响应和使用次数
-      existingPrompt.response = response || existingPrompt.response;
-      existingPrompt.usageCount += 1;
-      existingPrompt.updatedAt = new Date();
-      await existingPrompt.save();
-      
-      // 记录活动
-      await ActivityLog.create({
-        user: req.user._id,
-        action: 'update_prompt',
-        entityType: 'prompt',
-        entityId: existingPrompt._id,
-        ipAddress: req.ip,
-        userAgent: req.headers['user-agent']
+      return res.status(200).json({
+        success: true,
+        message: '提示词已存在',
+        prompt: existingPrompt
       });
-      
-      return successResponse(res, existingPrompt);
     }
     
-    // 创建新的提示词
-    const prompt = await Prompt.create({
-      user: req.user._id,
-      content,
-      response,
-      platform,
-      url,
-      favorite: false,
-      usageCount: 1
+    // 创建新提示词
+    const newPrompt = new Prompt({
+      user: userId,
+      title: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
+      content: content,
+      response: response || '',
+      tags: ['auto-saved'],
+      source: {
+        platform: platform || 'Unknown',
+        url: url || ''
+      },
+      isAutoSaved: true
     });
     
-    // 记录活动
-    await ActivityLog.create({
-      user: req.user._id,
-      action: 'auto_save_prompt',
-      entityType: 'prompt',
-      entityId: prompt._id,
-      ipAddress: req.ip,
-      userAgent: req.headers['user-agent']
+    // 保存到数据库
+    await newPrompt.save();
+    
+    // 更新用户的提示词计数
+    await User.findByIdAndUpdate(userId, { $inc: { promptCount: 1 } });
+    
+    res.status(201).json({
+      success: true,
+      message: '提示词已自动保存',
+      prompt: newPrompt
     });
-    
-    // 实现滚动存储机制
-    // 获取用户未收藏的提示词数量
-    const unfavoritedCount = await Prompt.countDocuments({
-      user: req.user._id,
-      favorite: false
-    });
-    
-    // 设置最大保存数量（可以从配置中读取）
-    const MAX_UNFAVORITED_PROMPTS = 100;
-    
-    // 如果超过限制，删除最旧的未收藏提示词
-    if (unfavoritedCount > MAX_UNFAVORITED_PROMPTS) {
-      const oldestPrompts = await Prompt.find({
-        user: req.user._id,
-        favorite: false
-      })
-      .sort('createdAt')
-      .limit(unfavoritedCount - MAX_UNFAVORITED_PROMPTS);
-      
-      if (oldestPrompts.length > 0) {
-        const oldestPromptIds = oldestPrompts.map(p => p._id);
-        
-        await Prompt.deleteMany({
-          _id: { $in: oldestPromptIds }
-        });
-        
-        logger.info(`已删除 ${oldestPromptIds.length} 个最旧的未收藏提示词，用户ID: ${req.user._id}`);
-      }
-    }
-    
-    return createdResponse(res, prompt);
   } catch (error) {
-    next(error);
+    next(new AppError('自动保存提示词失败', 500));
   }
 };
 
@@ -549,22 +497,314 @@ exports.quickSearchPrompts = async (req, res, next) => {
       return next(new AppError('搜索关键词不能为空', 'VALIDATION_ERROR', 400));
     }
     
-    // 构建查询条件
-    const searchQuery = {
-      user: req.user._id,
-      $or: [
-        { content: { $regex: query, $options: 'i' } }
-      ]
-    };
-    
     // 执行查询
-    const prompts = await Prompt.find(searchQuery)
-      .sort({ favorite: -1, usageCount: -1, updatedAt: -1 }) // 收藏>高频使用>最近使用
-      .limit(limit)
-      .select('content favorite usageCount');
+    const prompts = await Prompt.find({
+      user: req.user._id,
+      content: { $regex: query, $options: 'i' }
+    })
+    .sort('-updatedAt')
+    .limit(limit)
+    .select('content favorite usageCount');
     
     return successResponse(res, prompts);
   } catch (error) {
     next(error);
+  }
+};
+
+/**
+ * 批量操作提示词（更新或删除）
+ * @param {Object} req - Express请求对象
+ * @param {Object} res - Express响应对象
+ * @param {Function} next - Express下一个中间件函数
+ */
+exports.bulkOperationPrompts = async (req, res, next) => {
+  try {
+    const { operation, promptIds, data } = req.body;
+    
+    if (!promptIds || !Array.isArray(promptIds) || promptIds.length === 0) {
+      return next(new AppError('请提供有效的提示词ID列表', 400));
+    }
+    
+    // 验证所有提示词是否属于当前用户
+    const prompts = await Prompt.find({
+      _id: { $in: promptIds },
+      user: req.user._id
+    });
+    
+    if (prompts.length !== promptIds.length) {
+      return next(new AppError('部分提示词不存在或不属于当前用户', 404));
+    }
+    
+    let result;
+    let actionType;
+    
+    // 根据操作类型执行不同的批量操作
+    switch (operation) {
+      case 'update':
+        if (!data) {
+          return next(new AppError('更新操作需要提供数据', 400));
+        }
+        
+        // 允许批量更新的字段
+        const allowedFields = ['tags', 'favorite', 'title'];
+        const updateData = {};
+        
+        Object.keys(data).forEach(key => {
+          if (allowedFields.includes(key)) {
+            updateData[key] = data[key];
+          }
+        });
+        
+        if (Object.keys(updateData).length === 0) {
+          return next(new AppError('没有提供有效的更新字段', 400));
+        }
+        
+        // 执行批量更新
+        result = await Prompt.updateMany(
+          { _id: { $in: promptIds }, user: req.user._id },
+          { $set: updateData }
+        );
+        
+        actionType = 'update_prompts_bulk';
+        break;
+        
+      case 'delete':
+        // 执行批量删除
+        result = await Prompt.deleteMany({
+          _id: { $in: promptIds },
+          user: req.user._id
+        });
+        
+        actionType = 'delete_prompts_bulk';
+        break;
+        
+      default:
+        return next(new AppError('不支持的操作类型', 400));
+    }
+    
+    // 记录活动
+    await ActivityLog.create({
+      user: req.user._id,
+      action: actionType,
+      entityType: 'Prompt',
+      details: {
+        promptCount: promptIds.length,
+        operation
+      }
+    });
+    
+    return successResponse(res, {
+      message: `成功${operation === 'update' ? '更新' : '删除'}${promptIds.length}个提示词`,
+      data: {
+        count: operation === 'update' ? result.modifiedCount : result.deletedCount,
+        promptIds
+      }
+    });
+  } catch (err) {
+    logger.error(`批量操作提示词失败: ${err.message}`);
+    return next(err);
+  }
+};
+
+/**
+ * 导出提示词
+ * @param {Object} req - Express请求对象
+ * @param {Object} res - Express响应对象
+ * @param {Function} next - Express下一个中间件函数
+ */
+exports.exportPrompts = async (req, res, next) => {
+  try {
+    const { format = 'json', promptIds } = req.query;
+    
+    // 构建查询条件
+    const queryObj = { user: req.user._id };
+    
+    // 如果提供了特定的提示词ID列表，则只导出这些提示词
+    if (promptIds) {
+      const ids = promptIds.split(',');
+      queryObj._id = { $in: ids };
+    }
+    
+    // 查询提示词
+    const prompts = await Prompt.find(queryObj)
+      .populate('tags', 'name color')
+      .sort('-createdAt');
+    
+    if (prompts.length === 0) {
+      return next(new AppError('没有找到可导出的提示词', 404));
+    }
+    
+    // 准备导出数据
+    const exportData = prompts.map(prompt => {
+      const promptObj = prompt.toObject();
+      
+      // 转换标签为名称数组，便于导入
+      if (promptObj.tags && promptObj.tags.length > 0) {
+        promptObj.tagNames = promptObj.tags.map(tag => tag.name);
+      }
+      
+      // 移除不需要的字段
+      delete promptObj._id;
+      delete promptObj.__v;
+      delete promptObj.user;
+      
+      return promptObj;
+    });
+    
+    // 记录活动
+    await ActivityLog.create({
+      user: req.user._id,
+      action: 'export_prompts',
+      entityType: 'Prompt',
+      details: {
+        count: prompts.length,
+        format
+      }
+    });
+    
+    // 根据请求的格式返回数据
+    if (format === 'csv') {
+      // 生成CSV格式
+      const fields = ['title', 'content', 'response', 'platform', 'url', 'tagNames', 'favorite', 'createdAt', 'updatedAt'];
+      const csv = [];
+      
+      // 添加标题行
+      csv.push(fields.join(','));
+      
+      // 添加数据行
+      exportData.forEach(prompt => {
+        const row = fields.map(field => {
+          let value = prompt[field];
+          
+          // 处理特殊字段
+          if (field === 'tagNames' && Array.isArray(value)) {
+            value = value.join('|');
+          }
+          
+          // 处理包含逗号的字段
+          if (typeof value === 'string' && value.includes(',')) {
+            value = `"${value.replace(/"/g, '""')}"`;
+          }
+          
+          return value !== undefined ? value : '';
+        });
+        
+        csv.push(row.join(','));
+      });
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=prompts.csv');
+      return res.send(csv.join('\n'));
+    } else {
+      // 默认返回JSON格式
+      return successResponse(res, {
+        data: exportData,
+        count: exportData.length
+      });
+    }
+  } catch (err) {
+    logger.error(`导出提示词失败: ${err.message}`);
+    return next(err);
+  }
+};
+
+/**
+ * 导入提示词
+ * @param {Object} req - Express请求对象
+ * @param {Object} res - Express响应对象
+ * @param {Function} next - Express下一个中间件函数
+ */
+exports.importPrompts = async (req, res, next) => {
+  try {
+    const { prompts } = req.body;
+    
+    if (!prompts || !Array.isArray(prompts) || prompts.length === 0) {
+      return next(new AppError('请提供有效的提示词数据', 400));
+    }
+    
+    // 处理导入的提示词
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: []
+    };
+    
+    // 获取用户的所有标签，用于标签名称到ID的映射
+    const userTags = await Tag.find({ user: req.user._id });
+    const tagNameToId = {};
+    userTags.forEach(tag => {
+      tagNameToId[tag.name.toLowerCase()] = tag._id;
+    });
+    
+    // 处理每个提示词
+    for (const promptData of prompts) {
+      try {
+        // 准备提示词数据
+        const newPrompt = {
+          user: req.user._id,
+          content: promptData.content,
+          title: promptData.title || '',
+          response: promptData.response || '',
+          platform: promptData.platform || '',
+          url: promptData.url || '',
+          favorite: !!promptData.favorite
+        };
+        
+        // 处理标签
+        if (promptData.tagNames && Array.isArray(promptData.tagNames)) {
+          newPrompt.tags = [];
+          
+          for (const tagName of promptData.tagNames) {
+            const normalizedTagName = tagName.toLowerCase();
+            
+            // 如果标签已存在，使用现有标签ID
+            if (tagNameToId[normalizedTagName]) {
+              newPrompt.tags.push(tagNameToId[normalizedTagName]);
+            } else {
+              // 创建新标签
+              const newTag = await Tag.create({
+                name: tagName,
+                user: req.user._id,
+                color: '#' + Math.floor(Math.random() * 16777215).toString(16) // 随机颜色
+              });
+              
+              tagNameToId[normalizedTagName] = newTag._id;
+              newPrompt.tags.push(newTag._id);
+            }
+          }
+        }
+        
+        // 创建提示词
+        await Prompt.create(newPrompt);
+        results.success++;
+      } catch (err) {
+        results.failed++;
+        results.errors.push({
+          content: promptData.content?.substring(0, 50) + '...',
+          error: err.message
+        });
+      }
+    }
+    
+    // 记录活动
+    await ActivityLog.create({
+      user: req.user._id,
+      action: 'import_prompts',
+      entityType: 'Prompt',
+      details: {
+        total: prompts.length,
+        success: results.success,
+        failed: results.failed
+      }
+    });
+    
+    return successResponse(res, {
+      message: `成功导入${results.success}个提示词，失败${results.failed}个`,
+      data: results
+    });
+  } catch (err) {
+    logger.error(`导入提示词失败: ${err.message}`);
+    return next(err);
   }
 }; 

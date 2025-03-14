@@ -11,6 +11,7 @@ const compression = require('compression');
 const routes = require('./routes');
 const { globalErrorHandler } = require('./middlewares/errorHandler');
 const logger = require('./utils/logger');
+const { monitorMiddleware } = require('./middlewares/monitor');
 
 // 创建Express应用
 const app = express();
@@ -22,6 +23,9 @@ app.use(helmet());
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
+
+// 添加监控中间件
+app.use(monitorMiddleware);
 
 // 限制请求速率
 const limiter = rateLimit({

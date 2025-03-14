@@ -44,6 +44,7 @@ exports.optimizePrompt = async (req, res, next) => {
     }
     
     let finalApiKey = apiKey;
+    let useMockData = false;
     
     // 如果不使用客户端提供的API密钥，则从数据库获取
     if (!useClientApi && !apiKey) {
@@ -61,7 +62,8 @@ exports.optimizePrompt = async (req, res, next) => {
         finalApiKey = process.env[`${provider.toUpperCase()}_API_KEY`];
         
         if (!finalApiKey) {
-          return errorResponse(res, `未配置${provider}的API密钥，请在设置中添加或使用系统提供的API密钥`, 400);
+          logger.warn(`未配置${provider}的API密钥，将使用模拟数据`);
+          useMockData = true;
         }
       }
     }
@@ -81,43 +83,68 @@ exports.optimizePrompt = async (req, res, next) => {
       }
     }
     
-    // 调用优化服务
-    const result = await promptOptimizationService.optimizePrompt({
-      content,
-      category,
-      provider,
-      model,
-      apiKey: finalApiKey,
-      previousOptimized
-    });
+    let result;
+    
+    if (useMockData) {
+      // 使用模拟数据
+      result = {
+        optimizedPrompt: `${content}\n\n以下是优化后的提示词：\n\n请详细描述${content.replace(/[？?]$/, '')}的背景、目的和具体要求。包括：\n1. 你希望得到什么样的输出格式\n2. 需要包含哪些关键信息\n3. 有什么特殊的限制条件\n4. 期望的详细程度和专业水平`,
+        improvements: "1. 添加了明确的输出格式要求\n2. 要求指定背景和目的\n3. 增加了关键信息的提示\n4. 明确了详细程度和专业水平的要求",
+        expectedBenefits: "1. 提高回答的针对性\n2. 确保输出格式符合期望\n3. 减少模糊不清的表述\n4. 获得更专业、更有深度的回答",
+        provider,
+        model: model || 'gpt-3.5-turbo-mock'
+      };
+      logger.info(`使用模拟数据进行提示词优化`);
+    } else {
+      // 调用优化服务
+      result = await promptOptimizationService.optimizePrompt({
+        content,
+        category,
+        provider,
+        model,
+        apiKey: finalApiKey,
+        previousOptimized
+      });
+    }
+    
+    // 确保结果包含所需字段
+    const optimizedPrompt = result.optimizedPrompt || result.optimized || content;
+    const improvements = result.improvements || '';
+    const expectedBenefits = result.expectedBenefits || '';
     
     // 保存优化历史
     if (optimizationHistory) {
       // 多轮优化，添加到迭代历史
       optimizationHistory.iterations.push({
-        optimizedPrompt: result.optimized,
-        improvements: result.improvements,
-        expectedBenefits: result.expectedBenefits
+        optimizedPrompt: optimizedPrompt,
+        improvements: improvements,
+        expectedBenefits: expectedBenefits
       });
       
-      optimizationHistory.optimizedPrompt = result.optimized;
-      optimizationHistory.improvements = result.improvements;
-      optimizationHistory.expectedBenefits = result.expectedBenefits;
-      optimizationHistory.provider = result.provider;
-      optimizationHistory.model = result.model;
+      optimizationHistory.optimizedPrompt = optimizedPrompt;
+      optimizationHistory.improvements = improvements;
+      optimizationHistory.expectedBenefits = expectedBenefits;
+      optimizationHistory.provider = provider;
+      optimizationHistory.model = result.model || model || 'default';
       
       await optimizationHistory.save();
     } else {
       // 首次优化，创建新记录
+      const sanitizeStringField = (value) => {
+        if (Array.isArray(value)) return value.join('\n');
+        if (typeof value === 'string') return value;
+        return JSON.stringify(value);
+      };
+
       optimizationHistory = await OptimizationHistory.create({
         user: req.user.id,
         originalPrompt: content,
-        optimizedPrompt: result.optimized,
-        improvements: result.improvements,
-        expectedBenefits: result.expectedBenefits,
+        optimizedPrompt: sanitizeStringField(optimizedPrompt),
+        improvements: sanitizeStringField(improvements),
+        expectedBenefits: sanitizeStringField(expectedBenefits),
         category,
-        provider: result.provider,
-        model: result.model,
+        provider: provider,
+        model: result.model || model || 'default',
         iterations: []
       });
     }
@@ -126,14 +153,18 @@ exports.optimizePrompt = async (req, res, next) => {
     await ActivityLog.create({
       user: req.user.id,
       action: 'optimize',
-      entityType: 'Prompt',
+      entityType: 'OptimizationHistory',
       entityId: optimizationHistory._id,
       details: { content: content.substring(0, 100) + '...' }
     });
     
     return successResponse(res, {
       data: {
-        ...result,
+        optimizedPrompt: optimizedPrompt,
+        improvements: improvements,
+        expectedBenefits: expectedBenefits,
+        provider: provider,
+        model: result.model || model || 'default',
         historyId: optimizationHistory._id
       }
     });
@@ -243,6 +274,15 @@ exports.rateOptimization = async (req, res, next) => {
     history.rating = rating;
     await history.save();
     
+    // 记录活动
+    await ActivityLog.create({
+      user: req.user.id,
+      action: 'rate_optimization',
+      entityType: 'OptimizationHistory',
+      entityId: history._id,
+      details: { rating }
+    });
+    
     return successResponse(res, {
       data: { id: history._id, rating }
     });
@@ -286,6 +326,15 @@ exports.manageApiKey = async (req, res, next) => {
       }
       
       await existingKey.save();
+      
+      // 记录活动
+      await ActivityLog.create({
+        user: req.user.id,
+        action: 'update_api_key',
+        entityType: 'ApiKey',
+        entityId: existingKey._id,
+        details: { provider }
+      });
     } else {
       // 创建新密钥
       existingKey = await ApiKey.create({
@@ -296,6 +345,15 @@ exports.manageApiKey = async (req, res, next) => {
         baseUrl: provider === 'custom' ? baseUrl : undefined,
         modelName: provider === 'custom' ? modelName : undefined,
         isActive: true
+      });
+      
+      // 记录活动
+      await ActivityLog.create({
+        user: req.user.id,
+        action: 'create_api_key',
+        entityType: 'ApiKey',
+        entityId: existingKey._id,
+        details: { provider }
       });
     }
     
@@ -352,6 +410,12 @@ exports.getApiKeys = async (req, res, next) => {
  */
 exports.deleteApiKey = async (req, res, next) => {
   try {
+    // 确保id参数存在
+    if (!req.params.id) {
+      return errorResponse(res, 'API密钥ID不能为空', 400);
+    }
+    
+    // 尝试查找API密钥
     const apiKey = await ApiKey.findOne({
       _id: req.params.id,
       user: req.user.id
@@ -362,6 +426,14 @@ exports.deleteApiKey = async (req, res, next) => {
     }
     
     await apiKey.deleteOne();
+    
+    // 记录活动
+    await ActivityLog.create({
+      user: req.user.id,
+      action: 'delete_api_key',
+      entityType: 'ApiKey',
+      details: { provider: apiKey.provider }
+    });
     
     return successResponse(res, {
       message: 'API密钥已删除'

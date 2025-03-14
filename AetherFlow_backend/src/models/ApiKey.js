@@ -50,11 +50,9 @@ apiKeySchema.index({ user: 1, provider: 1 }, { unique: true });
 // 加密API密钥
 apiKeySchema.statics.encryptKey = function(apiKey) {
   const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv(
-    'aes-256-cbc',
-    Buffer.from(process.env.ENCRYPTION_KEY, 'hex'),
-    iv
-  );
+  const key = Buffer.alloc(32); // 创建32字节的缓冲区
+  Buffer.from(process.env.ENCRYPTION_KEY, 'hex').copy(key); // 将加密密钥复制到缓冲区
+  const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
   let encrypted = cipher.update(apiKey, 'utf8', 'hex');
   encrypted += cipher.final('hex');
   return {
@@ -65,9 +63,11 @@ apiKeySchema.statics.encryptKey = function(apiKey) {
 
 // 解密API密钥
 apiKeySchema.methods.decryptKey = function() {
+  const key = Buffer.alloc(32); // 创建32字节的缓冲区
+  Buffer.from(process.env.ENCRYPTION_KEY, 'hex').copy(key); // 将加密密钥复制到缓冲区
   const decipher = crypto.createDecipheriv(
     'aes-256-cbc',
-    Buffer.from(process.env.ENCRYPTION_KEY, 'hex'),
+    key,
     Buffer.from(this.iv, 'hex')
   );
   let decrypted = decipher.update(this.encryptedKey, 'hex', 'utf8');

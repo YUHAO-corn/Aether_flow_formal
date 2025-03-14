@@ -6,6 +6,10 @@ const promptSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  title: {
+    type: String,
+    trim: true
+  },
   content: {
     type: String,
     required: [true, 'Prompt content is required'],
@@ -23,6 +27,16 @@ const promptSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  source: {
+    platform: {
+      type: String,
+      trim: true
+    },
+    url: {
+      type: String,
+      trim: true
+    }
+  },
   tags: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Tag'
@@ -34,6 +48,10 @@ const promptSchema = new mongoose.Schema({
   usageCount: {
     type: Number,
     default: 0
+  },
+  isAutoSaved: {
+    type: Boolean,
+    default: false
   },
   metrics: {
     clarity: {

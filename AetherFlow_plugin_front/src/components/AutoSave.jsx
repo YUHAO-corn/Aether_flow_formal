@@ -1,123 +1,225 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { RiSaveLine, RiHistoryLine, RiCloseLine } from 'react-icons/ri';
+import { motion } from 'framer-motion';
+import { Save, Clock, CheckCircle, XCircle, Settings, RefreshCw } from 'react-feather';
 
-const AutoSave = ({ reducedMotion }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [lastSaved, setLastSaved] = useState('Just now');
-  const [saveStatus, setSaveStatus] = useState('saved'); // 'saving', 'saved', 'error'
-  
-  // Mock history data
-  const saveHistory = [
-    { id: 1, timestamp: '2 minutes ago', content: 'Prompt about creative writing techniques' },
-    { id: 2, timestamp: '15 minutes ago', content: 'Email template for job application' },
-    { id: 3, timestamp: '1 hour ago', content: 'Product description for new smartphone' },
-    { id: 4, timestamp: '3 hours ago', content: 'Blog post outline about AI ethics' },
-    { id: 5, timestamp: 'Yesterday, 8:45 PM', content: 'Social media post ideas for launch' }
-  ];
-  
-  // Simulate periodic saving
+const AutoSave = ({ enabled }) => {
+  const [status, setStatus] = useState('idle'); // idle, listening, saving, success, error
+  const [savedCount, setSavedCount] = useState(0);
+  const [lastSaved, setLastSaved] = useState(null);
+  const [currentPlatform, setCurrentPlatform] = useState('');
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // 初始化自动保存功能
   useEffect(() => {
-    const interval = setInterval(() => {
-      setSaveStatus('saving');
-      
-      setTimeout(() => {
-        setSaveStatus('saved');
-        setLastSaved('Just now');
-      }, 1500);
-    }, 30000);
-    
-    return () => clearInterval(interval);
-  }, []);
-  
-  const toggleExpand = () => {
-    setIsExpanded(!isExpanded);
-  };
-  
-  return (
-    <div className="fixed bottom-4 right-4 z-20">
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            className="absolute bottom-12 right-0 w-64 bg-gray-800 border border-gray-700 rounded-lg shadow-lg overflow-hidden"
-            initial={{ opacity: 0, y: 10, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: 'auto' }}
-            exit={{ opacity: 0, y: 10, height: 0 }}
-            transition={{ duration: reducedMotion ? 0 : 0.2 }}
-          >
-            <div className="p-3 border-b border-gray-700 flex justify-between items-center">
-              <h3 className="font-medium text-white">Save History</h3>
-              <button 
-                onClick={toggleExpand}
-                className="text-gray-400 hover:text-white"
-                aria-label="Close history"
-              >
-                <RiCloseLine />
-              </button>
-            </div>
+    if (!enabled) {
+      setStatus('idle');
+      return;
+    }
+
+    // 获取当前标签页信息
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]) {
+        // 检查当前平台
+        chrome.tabs.sendMessage(tabs[0].id, { 
+          action: 'checkPlatform'
+        }, (response) => {
+          if (response && response.success) {
+            const platform = response.platform;
+            setCurrentPlatform(platform);
             
-            <div className="max-h-64 overflow-y-auto">
-              {saveHistory.map(item => (
-                <div 
-                  key={item.id}
-                  className="p-3 border-b border-gray-700 hover:bg-gray-700/50 transition-colors cursor-pointer"
-                >
-                  <div className="flex justify-between items-start">
-                    <span className="text-xs text-gray-400">{item.timestamp}</span>
-                    <button className="text-xs text-purple-400 hover:text-purple-300">
-                      Restore
-                    </button>
-                  </div>
-                  <p className="text-sm text-gray-300 mt-1 line-clamp-2">{item.content}</p>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      
-      <motion.button
-        className={`flex items-center space-x-2 px-3 py-2 rounded-lg ${
-          saveStatus === 'saving' 
-            ? 'bg-blue-900/70 text-blue-300' 
-            : saveStatus === 'error'
-              ? 'bg-red-900/70 text-red-300'
-              : 'bg-gray-800/70 text-gray-300 hover:bg-gray-700/70'
-        }`}
-        whileHover={reducedMotion ? {} : { y: -2 }}
-        onClick={toggleExpand}
-        aria-label="View save history"
-      >
-        {saveStatus === 'saving' ? (
-          <motion.div 
-            className="w-4 h-4 border-2 border-t-transparent border-blue-300 rounded-full"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          />
-        ) : (
-          saveStatus === 'error' ? (
-            <motion.div 
-              className="w-4 h-4 text-red-300"
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 1, repeat: Infinity }}
-            >
-              !
-            </motion.div>
-          ) : (
-            <RiSaveLine />
-          )
-        )}
+            if (response.isSupported) {
+              setStatus('listening');
+              setIsInitialized(true);
+              
+              // 启动监听
+              chrome.tabs.sendMessage(tabs[0].id, { 
+                action: 'startAutoSave',
+                platform: platform
+              });
+            } else {
+              setStatus('unsupported');
+              setIsInitialized(true);
+            }
+          } else {
+            // 内容脚本可能未加载
+            setStatus('error');
+            setIsInitialized(true);
+          }
+        });
+      }
+    });
+    
+    // 监听来自内容脚本的消息
+    const messageListener = (message, sender, sendResponse) => {
+      if (message.action === 'promptSaved') {
+        setStatus('success');
+        setSavedCount(prev => prev + 1);
+        setLastSaved(new Date());
         
-        <div className="flex items-center space-x-1">
-          <span>{saveStatus === 'saving' ? 'Saving...' : `Saved ${lastSaved}`}</span>
-          <RiHistoryLine 
-            className={`text-gray-400 ${isExpanded ? 'rotate-180' : ''} transition-transform`} 
-            size={14} 
-          />
+        // 3秒后恢复监听状态
+        setTimeout(() => {
+          setStatus('listening');
+        }, 3000);
+      } else if (message.action === 'promptSaveError') {
+        setStatus('error');
+        
+        // 5秒后恢复监听状态
+        setTimeout(() => {
+          setStatus('listening');
+        }, 5000);
+      }
+    };
+    
+    chrome.runtime.onMessage.addListener(messageListener);
+    
+    // 清理函数
+    return () => {
+      chrome.runtime.onMessage.removeListener(messageListener);
+      
+      // 停止自动保存
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]) {
+          chrome.tabs.sendMessage(tabs[0].id, { action: 'stopAutoSave' });
+        }
+      });
+    };
+  }, [enabled]);
+
+  // 格式化时间
+  const formatTime = (date) => {
+    if (!date) return '';
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // 状态图标
+  const getStatusIcon = () => {
+    switch (status) {
+      case 'idle':
+        return <Settings size={18} />;
+      case 'listening':
+        return <Clock size={18} />;
+      case 'saving':
+        return <RefreshCw size={18} className="animate-spin" />;
+      case 'success':
+        return <CheckCircle size={18} />;
+      case 'error':
+        return <XCircle size={18} />;
+      case 'unsupported':
+        return <XCircle size={18} />;
+      default:
+        return <Save size={18} />;
+    }
+  };
+
+  // 状态文本
+  const getStatusText = () => {
+    switch (status) {
+      case 'idle':
+        return '自动保存已禁用';
+      case 'listening':
+        return `正在监听 ${currentPlatform} 提示词`;
+      case 'saving':
+        return '正在保存...';
+      case 'success':
+        return `已保存 (${formatTime(lastSaved)})`;
+      case 'error':
+        return '保存失败，请重试';
+      case 'unsupported':
+        return '不支持当前平台';
+      default:
+        return '自动保存';
+    }
+  };
+
+  // 状态颜色
+  const getStatusColor = () => {
+    switch (status) {
+      case 'idle':
+        return 'text-gray-400';
+      case 'listening':
+        return 'text-blue-400';
+      case 'saving':
+        return 'text-yellow-400';
+      case 'success':
+        return 'text-green-400';
+      case 'error':
+        return 'text-red-400';
+      case 'unsupported':
+        return 'text-orange-400';
+      default:
+        return 'text-gray-400';
+    }
+  };
+
+  return (
+    <div className="p-4">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold flex items-center">
+          <Save className="mr-2" size={20} />
+          自动保存
+        </h2>
+        
+        <div className={`flex items-center ${getStatusColor()}`}>
+          {getStatusIcon()}
+          <span className="ml-2 text-sm">{getStatusText()}</span>
         </div>
-      </motion.button>
+      </div>
+      
+      {enabled ? (
+        <div className="bg-gray-800 rounded-lg p-4">
+          {!isInitialized ? (
+            <div className="text-center py-8">
+              <RefreshCw size={24} className="animate-spin mx-auto mb-4" />
+              <p>正在初始化自动保存功能...</p>
+            </div>
+          ) : status === 'unsupported' ? (
+            <div className="text-center py-4">
+              <p className="mb-2">未检测到支持的AI平台</p>
+              <p className="text-sm text-gray-400">
+                请访问 ChatGPT, Claude, Gemini, Phind, Perplexity 或其他支持的AI平台以启用自动保存
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="flex justify-between mb-3">
+                <span className="text-gray-400">平台:</span>
+                <span>{currentPlatform}</span>
+              </div>
+              
+              <div className="flex justify-between mb-3">
+                <span className="text-gray-400">状态:</span>
+                <span className={getStatusColor()}>
+                  {status === 'listening' ? '监听中' : 
+                   status === 'success' ? '已保存' : 
+                   status === 'error' ? '错误' : 
+                   status === 'saving' ? '保存中' : '空闲'}
+                </span>
+              </div>
+              
+              <div className="flex justify-between mb-3">
+                <span className="text-gray-400">已保存提示词:</span>
+                <span>{savedCount}</span>
+              </div>
+              
+              {lastSaved && (
+                <div className="flex justify-between">
+                  <span className="text-gray-400">最近保存时间:</span>
+                  <span>{formatTime(lastSaved)}</span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="bg-gray-800 rounded-lg p-4 text-center">
+          <p className="mb-2">自动保存功能已禁用</p>
+          <p className="text-sm text-gray-400">
+            在设置中启用此功能以自动保存您的提示词
+          </p>
+        </div>
+      )}
     </div>
   );
 };
 
-export default AutoSave;
+export default AutoSave; 

@@ -129,4 +129,68 @@ src/
 
 ## 许可证
 
-[ISC](LICENSE) 
+[ISC](LICENSE)
+
+## 测试
+
+### 使用内存数据库进行测试
+
+项目使用 `mongodb-memory-server` 在内存中创建MongoDB实例进行测试，无需连接外部数据库。
+
+#### 安装依赖
+
+```bash
+npm install --save-dev mongodb-memory-server
+```
+
+#### 测试文件结构示例
+
+```javascript
+const mongoose = require('mongoose');
+const { MongoMemoryServer } = require('mongodb-memory-server');
+
+// 创建内存MongoDB实例
+let mongoServer;
+
+// 在所有测试之前启动内存MongoDB服务器
+beforeAll(async () => {
+  mongoServer = await MongoMemoryServer.create();
+  const uri = mongoServer.getUri();
+  
+  // 连接到内存数据库
+  await mongoose.connect(uri);
+});
+
+// 在所有测试之后关闭连接和服务器
+afterAll(async () => {
+  await mongoose.disconnect();
+  await mongoServer.stop();
+});
+
+// 每个测试之前清理数据库
+beforeEach(async () => {
+  const collections = mongoose.connection.collections;
+  for (const key in collections) {
+    await collections[key].deleteMany({});
+  }
+});
+
+// 编写测试用例
+describe('测试套件', () => {
+  test('测试用例', async () => {
+    // 创建测试数据
+    // 执行测试
+    // 验证结果
+  });
+});
+```
+
+#### 运行测试
+
+```bash
+# 运行所有测试
+npm test
+
+# 运行特定测试文件
+npm test -- --testPathPattern=文件名
+``` 

@@ -10,7 +10,7 @@ const logger = require('./utils/logger');
 connectDB()
   .then(() => {
     // 启动服务器
-    const PORT = process.env.PORT || 3000;
+    const PORT = process.env.PORT || 3001;
     const server = app.listen(PORT, () => {
       logger.info(`服务器运行在端口: ${PORT}`);
       logger.info(`环境: ${process.env.NODE_ENV || 'development'}`);

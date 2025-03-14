@@ -3,29 +3,12 @@
 @tailwind utilities;
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
   color-scheme: dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #121212;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  margin: 0;
-  display: flex;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-#root {
-  width: 100%;
+  @apply bg-gray-900 text-gray-100;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 /* Custom scrollbar */
@@ -48,207 +31,64 @@ body {
 
 /* Animations */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes fadeOut {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
+@keyframes glow {
+  0% { box-shadow: 0 0 5px rgba(139, 92, 246, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.8); }
+  100% { box-shadow: 0 0 5px rgba(139, 92, 246, 0.5); }
 }
 
-@keyframes slideInUp {
-  from {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes slideInDown {
-  from {
-    transform: translateY(-20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes scaleIn {
-  from {
-    transform: scale(0.9);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-@keyframes scaleOut {
-  from {
-    transform: scale(1);
-    opacity: 1;
-  }
-  to {
-    transform: scale(0.9);
-    opacity: 0;
-  }
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
 }
 
 @keyframes pulse {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.05);
-    opacity: 0.8;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
-/* 动画类 */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .animate-fadeIn {
-  animation: fadeIn 0.3s ease forwards;
+  animation: fadeIn 0.3s ease-out forwards;
 }
 
-.animate-fadeOut {
-  animation: fadeOut 0.3s ease forwards;
+.animate-glow {
+  animation: glow 2s infinite;
 }
 
-.animate-slideInUp {
-  animation: slideInUp 0.4s ease forwards;
+.animate-float {
+  animation: float 3s ease-in-out infinite;
 }
 
-.animate-slideInDown {
-  animation: slideInDown 0.4s ease forwards;
+.animate-pulse-slow {
+  animation: pulse 3s ease-in-out infinite;
 }
 
-.animate-scaleIn {
-  animation: scaleIn 0.3s ease forwards;
+.animate-spin-slow {
+  animation: spin-slow 10s linear infinite;
 }
 
-.animate-scaleOut {
-  animation: scaleOut 0.3s ease forwards;
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-
-.animate-pulse {
-  animation: pulse 2s ease infinite;
-}
-
-/* 延迟类 */
-.delay-100 {
-  animation-delay: 100ms;
-}
-
-.delay-200 {
-  animation-delay: 200ms;
-}
-
-.delay-300 {
-  animation-delay: 300ms;
-}
-
-.delay-400 {
-  animation-delay: 400ms;
-}
-
-.delay-500 {
-  animation-delay: 500ms;
-}
-
-/* 过渡类 */
-.transition-all {
-  transition: all 0.3s ease;
-}
-
-.transition-transform {
-  transition: transform 0.3s ease;
-}
-
-.transition-opacity {
-  transition: opacity 0.3s ease;
-}
-
-.hover-scale:hover {
-  transform: scale(1.05);
-}
-
-.hover-bright:hover {
-  filter: brightness(1.1);
-}
-
-.active-scale:active {
-  transform: scale(0.95);
-}
-
-/* 自定义动画类 */
-.fadeIn {
-  animation: fadeIn 0.3s ease forwards;
-}
-
-.scale-in {
-  animation: scaleIn 0.3s ease forwards;
-}
-
-.slide-in-up {
-  animation: slideInUp 0.4s ease forwards;
-}
-
-.slide-in-down {
-  animation: slideInDown 0.4s ease forwards;
-}
-
-/* 文本截断 */
-.line-clamp-1 {
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 1;
-}
-
+/* Line clamp utilities */
 .line-clamp-2 {
-  overflow: hidden;
   display: -webkit-box;
-  -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .line-clamp-3 {
-  overflow: hidden;
   display: -webkit-box;
-  -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* 3D perspective */

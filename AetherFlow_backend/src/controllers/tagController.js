@@ -4,6 +4,7 @@ const ActivityLog = require('../models/ActivityLog');
 const AppError = require('../middlewares/errorHandler').AppError;
 const { successResponse, createdResponse, notFoundResponse } = require('../utils/responseHandler');
 const logger = require('../utils/logger');
+const responseHandler = require('../utils/responseHandler');
 
 /**
  * 获取用户的所有标签
@@ -44,10 +45,8 @@ exports.getTags = async (req, res, next) => {
       })
     );
     
-    return successResponse(res, {
-      results: tagsWithCount.length,
-      data: tagsWithCount
-    });
+    // 直接返回标签数组，让responseHandler处理格式转换
+    return responseHandler.successResponse(res, tagsWithCount);
   } catch (err) {
     logger.error(`获取标签列表失败: ${err.message}`);
     return next(err);
@@ -81,7 +80,7 @@ exports.createTag = async (req, res, next) => {
     // 记录活动
     await ActivityLog.create({
       user: req.user.id,
-      action: 'create',
+      action: 'create_tag',
       entityType: 'Tag',
       entityId: newTag._id,
       details: { name: newTag.name }
@@ -179,7 +178,7 @@ exports.updateTag = async (req, res, next) => {
     // 记录活动
     await ActivityLog.create({
       user: req.user.id,
-      action: 'update',
+      action: 'update_tag',
       entityType: 'Tag',
       entityId: updatedTag._id,
       details: { name: updatedTag.name }
@@ -223,7 +222,7 @@ exports.deleteTag = async (req, res, next) => {
     // 记录活动
     await ActivityLog.create({
       user: req.user.id,
-      action: 'delete',
+      action: 'delete_tag',
       entityType: 'Tag',
       entityId: req.params.id,
       details: { name: tag.name }
@@ -288,6 +287,125 @@ exports.getTagPrompts = async (req, res, next) => {
     });
   } catch (err) {
     logger.error(`获取标签关联提示词失败: ${err.message}`);
+    return next(err);
+  }
+};
+
+/**
+ * 获取所有标签
+ * @param {Object} req - 请求对象
+ * @param {Object} res - 响应对象
+ * @returns {Promise<void>}
+ */
+exports.getAllTags = async (req, res) => {
+  try {
+    const { search } = req.query;
+    const filter = { user: req.user.id };
+    
+    if (search) {
+      filter.name = { $regex: search, $options: 'i' };
+    }
+    
+    const tags = await Tag.find(filter).sort({ name: 1 });
+    
+    // 计算每个标签关联的提示词数量
+    for (const tag of tags) {
+      const promptCount = await Prompt.countDocuments({ user: req.user.id, tags: tag._id });
+      tag.promptCount = promptCount;
+    }
+    
+    // 直接返回标签数组，让responseHandler处理格式转换
+    return responseHandler.successResponse(res, tags);
+  } catch (error) {
+    logger.error(`获取标签失败: ${error.message}`);
+    return responseHandler.errorResponse(res, '获取标签失败', 'TAG_FETCH_ERROR');
+  }
+};
+
+/**
+ * 获取标签统计信息
+ * @route GET /api/v1/tags/statistics
+ * @access 私有
+ */
+exports.getTagStatistics = async (req, res, next) => {
+  try {
+    // 获取用户所有标签
+    const tags = await Tag.find({ user: req.user.id });
+    
+    // 统计结果
+    const statistics = {
+      totalTags: tags.length,
+      tagsWithPrompts: 0,
+      mostUsedTags: [],
+      recentlyCreatedTags: [],
+      promptDistribution: []
+    };
+    
+    // 获取每个标签的提示词数量
+    const tagStats = await Promise.all(
+      tags.map(async (tag) => {
+        const promptCount = await Prompt.countDocuments({ 
+          user: req.user.id, 
+          tags: tag._id 
+        });
+        
+        return {
+          _id: tag._id,
+          name: tag.name,
+          color: tag.color,
+          promptCount,
+          createdAt: tag.createdAt
+        };
+      })
+    );
+    
+    // 计算有关联提示词的标签数量
+    statistics.tagsWithPrompts = tagStats.filter(tag => tag.promptCount > 0).length;
+    
+    // 获取使用最多的前5个标签
+    statistics.mostUsedTags = [...tagStats]
+      .sort((a, b) => b.promptCount - a.promptCount)
+      .slice(0, 5);
+    
+    // 获取最近创建的5个标签
+    statistics.recentlyCreatedTags = [...tagStats]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 5);
+    
+    // 计算提示词分布
+    statistics.promptDistribution = tagStats.map(tag => ({
+      name: tag.name,
+      value: tag.promptCount,
+      color: tag.color
+    }));
+    
+    // 获取未分类的提示词数量
+    const untaggedPromptsCount = await Prompt.countDocuments({
+      user: req.user.id,
+      tags: { $size: 0 }
+    });
+    
+    if (untaggedPromptsCount > 0) {
+      statistics.promptDistribution.push({
+        name: '未分类',
+        value: untaggedPromptsCount,
+        color: '#cccccc'
+      });
+    }
+    
+    // 记录活动
+    await ActivityLog.create({
+      user: req.user.id,
+      action: 'view_tag_statistics',
+      entityType: 'Tag',
+      details: { totalTags: statistics.totalTags }
+    });
+    
+    return successResponse(res, {
+      data: statistics
+    });
+  } catch (err) {
+    logger.error(`获取标签统计信息失败: ${err.message}`);
     return next(err);
   }
 }; 
